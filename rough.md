@@ -32,6 +32,7 @@ classDiagram
 
         Anomaly()
         +String getAnomalyID()
+        +bool sendAnomalyAlert()
     }
 
     class Crime{
