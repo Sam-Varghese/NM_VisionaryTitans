@@ -16,8 +16,10 @@ classDiagram
         +String incidentType
         +String alertType
         +String incidentTime
+        +String incidentLocation
         +bool databaseEntryMade
         +bool alertSent
+        +String alertLevel
 
         Incident()
         +String getIncidentID()
