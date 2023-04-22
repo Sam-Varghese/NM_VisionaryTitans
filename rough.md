@@ -1,29 +1,51 @@
 ```mermaid
 
 ---
-title: Animal example
+title: Advance CCTV Analytics
 ---
 classDiagram
-    note "From Duck till Zebra"
-    Animal <|-- Duck
-    note for Duck "can fly\ncan swim\ncan dive\ncan help in debugging"
-    Animal <|-- Fish
-    Animal <|-- Zebra
-    Animal : +int age
-    Animal : +String gender
-    Animal: +isMammal()
-    Animal: +mate()
-    class Duck{
-        +String beakColor
-        +swim()
-        +quack()
+
+    Incident <|-- Crime
+    Crime <|-- Burglary
+    Crime <|-- Intrusion
+    Incident <|-- MedicalIncidents
+    MedicalIncidents<|-- Accidents
+
+    class Incident{
+        #String incidentID
+        +String incidentType
+        +String alertType
+        +String incidentTime
+        +bool databaseEntryMade
+        +bool alertSent
+
+        Incident()
+        +String getIncidentID()
     }
-    class Fish{
-        -int sizeInFeet
-        -canEat()
+
+    class Crime{
+        #String crimeName
     }
-    class Zebra{
-        +bool is_wild
-        +run()
+
+    class Burglary{
+        +bool maskedPerson
+        +bool running
+
+        +bool sendBurglaryAlert()
+    }
+
+    class Intrusion{
+        +bool humanDetected
+        +bool sendIntrusionAlert()
+    }
+
+    class MedicalIncidents{
+        #String medicalIncidentName
+    }
+
+    class Accidents{
+        #bool crashDetected
+        #bool fireDetected
+        +bool sendAccidentAlert()
     }
 ```
