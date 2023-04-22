@@ -1,4 +1,7 @@
 ```mermaid
+---
+title: Flow Chart
+---
 graph TD;
     camInp[Camera input] --> model[SSD+MobileNetV2 Model]
     camInp --> anom_det[Anomaly Detection Model]
