@@ -23,6 +23,7 @@ classDiagram
 
         Incident()
         +String getIncidentID()
+        Destructor()
     }
 
     class Anomaly{
@@ -30,11 +31,14 @@ classDiagram
         +String alertType
         +String anomalyTime
         +bool databaseEntryMade
+        +String incidentLocation
+        +String alertLevel
         +bool alertSent
 
         Anomaly()
         +String getAnomalyID()
         +bool sendAnomalyAlert()
+        Destructor()
     }
 
     class Crime{
