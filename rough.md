@@ -12,7 +12,7 @@ classDiagram
     MedicalIncidents<|-- Accidents
 
     class Incident{
-        #String incidentID
+        #String ID
         +String incidentType
         +String alertType
         +String incidentTime
@@ -21,6 +21,17 @@ classDiagram
 
         Incident()
         +String getIncidentID()
+    }
+
+    class Anomaly{
+        #String ID
+        +String alertType
+        +String anomalyTime
+        +bool databaseEntryMade
+        +bool alertSent
+
+        Anomaly()
+        +String getAnomalyID()
     }
 
     class Crime{
