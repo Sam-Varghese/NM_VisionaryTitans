@@ -16,7 +16,6 @@ hence there needs to be a proper study of types and causes of accidents prevaili
 
 ## Causes of Road Accidents
 
-
 ### Drunk Driving Fatalities
 
 According to [National Highway Traffic Safety Administration](https://www.nhtsa.gov/); 13,384 lives were lost because of drunk and drive cases.
@@ -36,3 +35,13 @@ According to the [Hyderabad Traffic Police](https://www.htp.gov.in/Drunken.html)
 - **Ability to drive the vehicle safely during night hours**: If drunken drivers face difficulties in driving in night, then this implies they'll loose track of lanes more often and over-speed frequently.
 - **In order to detect this kind of situation, we can make algorithms to track cars at every instant and keep an eye on their movements. If they're found frequently changing lanes, or in some weird behavior, then we can send an alert.**
 - **We can also observe their response to traffic signals. Like if they keep moving even during red lights, we may start sending alerts.**
+
+### Speeding Related Fatalities
+
+According to [National Highway Traffic Safety Administration](https://www.nhtsa.gov/); 12,330 people died due to over-speeding in 2021. It contributed to 29% of all traffic fatalities.
+
+#### Catching Over Speeding even before accidents occur
+
+**The YOLOv7 detection algorithm applied by my team can help us get an estimate of speed of each and every car on road, thus it's combination with ANPR (Automatic Number Plate Recognition) technology can help us in catching drivers who over-speed.**
+
+### Drowsy Driving
