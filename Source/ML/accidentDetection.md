@@ -62,8 +62,9 @@ Although it's more of a type of accident, still I've mentioned it here because t
 
 Side impact collisions happen mostly at intersections where front of a vehicle crashes with side of another vehicle forming a "T" shape.
 
-![alt](https://www.researchgate.net/publication/252014161/figure/fig1/AS:298029216223241@1448067110139/Side-collision-scenario-The-target-vehicle-is-closing-in-with-a-trajectory-visualized-in.png)
+![alt](https://florinroebig.com/wp-content/uploads/2020/07/side-collision-accident-scaled.jpg)
 
+**In order to detect these kind of situations, the ML model would be required to analyze the speed and direction of vehicles during intersections, and keep a check of stopping distance required to each one of them.**
 #### Detecting Drowsy Driving even before accidents occur
 
 As per the observations of NHTSA, drowsy drivers don't seem to be apply brakes mostly, and this usually happens mostly between midnight and 6 a.m.
