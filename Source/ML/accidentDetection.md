@@ -89,3 +89,15 @@ Side impact collisions happen mostly at intersections where front of a vehicle c
 ### Single Vehicle Accidents
 
 ![](https://turnto10.com/resources/media2/16x9/full/1015/center/80/b80c85b2-59d8-46c5-bdcc-6aae23b70983-large16x9_NKCRASHVIDEOPKG5PPKG.transfer_frame_69.jpg)
+
+The next most common form of accidents prevailing on roads is Single Vehicle Accident, wherein a particular vehicle somehow goes uncontrolled and collides. This may be the fault of driver, or the vehicle mechanism itself.
+
+**In order to detect Single Vehicle Accidents, we would need to analyze the speed and track being taken by the vehicle while it's being driven. If it goes off track, and reaches to a speed of 0Km/ hr because of collision, then the ML model can confirm the occurrence of a single vehicle accident.**
+
+### Head on Collisions
+
+![](https://nashfranciskato.com/wp-content/uploads/2022/07/Head-on-collision.jpg)
+
+Head on collisions are less frequent, but quite dangerous. Here the vehicles that collide usually drive in the opposite direction, so the impact is significant.
+
+**In order to detect head on collisions, we can track the vehicles, and keep a check if they are all moving in the same direction or not. If vehicles are found moving in the wrong lane, then the program can send an alert to warn even before an accident occurs.**
