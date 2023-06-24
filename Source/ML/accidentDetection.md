@@ -56,15 +56,6 @@ According to NHTSA, in [2017 91,000 crashes involved drowsy driving](https://www
 - Often involve only a single driver (and no passengers) running off the road at a high rate of speed with no evidence of braking; and
 - Frequently occur on rural roads and highways.
 
-### Side Impact Collisions
-
-Although it's more of a type of accident, still I've mentioned it here because this situation can be detected even before the occurrence of an accident.
-
-Side impact collisions happen mostly at intersections where front of a vehicle crashes with side of another vehicle forming a "T" shape.
-
-![alt](https://florinroebig.com/wp-content/uploads/2020/07/side-collision-accident-scaled.jpg)
-
-**In order to detect these kind of situations, the ML model would be required to analyze the speed and direction of vehicles during intersections, and keep a check of stopping distance required to each one of them.**
 #### Detecting Drowsy Driving even before accidents occur
 
 As per the observations of NHTSA, drowsy drivers don't seem to be apply brakes mostly, and this usually happens mostly between midnight and 6 a.m.
@@ -75,4 +66,26 @@ As per the observations of NHTSA, drowsy drivers don't seem to be apply brakes m
 
 But a model still won't be able to detect all accident prone situations with 100% accuracy, hence we need to detect accidents whenever they occur, and alert the officers, hospitals, and legal servicers.
 
-### 
+### Rear End Collisions
+
+- Happens when a vehicle crashes at the backside of another vehicle that was in front of it.
+- These collisions are most common, and accounts for a significant percentage of accidents.
+
+#### Detecting Rear End Collisions
+
+![](https://i.ytimg.com/vi/HD6QGx9d8ow/maxresdefault.jpg)
+
+- Detecting rear end collisions is comparatively difficult provided the crowdy situations that occur at Indian road, which make it difficult even for humans looking at CCTV capture to accurately detect these collisions.
+- **Hence a better approach would be to analyze the speed of cars, and calculate the minimum stopping distance required for safely stopping the vehicle.** If the distance left gets less than the stopping distance, then an immediate alert can be sent to officers for swift actions.
+
+### Side Impact Collisions
+
+Side impact collisions happen mostly at intersections where front of a vehicle crashes with side of another vehicle forming a "T" shape.
+
+![alt](https://florinroebig.com/wp-content/uploads/2020/07/side-collision-accident-scaled.jpg)
+
+**In order to detect these kind of situations, the ML model would be required to analyze the speed and direction of vehicles during intersections, and keep a check of stopping distance required to each one of them.**
+
+### Single Vehicle Accidents
+
+![](https://turnto10.com/resources/media2/16x9/full/1015/center/80/b80c85b2-59d8-46c5-bdcc-6aae23b70983-large16x9_NKCRASHVIDEOPKG5PPKG.transfer_frame_69.jpg)
