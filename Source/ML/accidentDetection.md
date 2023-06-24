@@ -16,6 +16,10 @@ hence there needs to be a proper study of types and causes of accidents prevaili
 
 ## Causes of Road Accidents
 
+How about detecting the situations prone to accidents, so we could avoid them even before they occur...
+
+![alt](https://cdn.pixabay.com/photo/2015/07/18/15/30/first-aid-850489_1280.jpg)
+
 ### Drunk Driving Fatalities
 
 According to [National Highway Traffic Safety Administration](https://www.nhtsa.gov/); 13,384 lives were lost because of drunk and drive cases.
@@ -45,3 +49,11 @@ According to [National Highway Traffic Safety Administration](https://www.nhtsa.
 **The YOLOv7 detection algorithm applied by my team can help us get an estimate of speed of each and every car on road, thus it's combination with ANPR (Automatic Number Plate Recognition) technology can help us in catching drivers who over-speed.**
 
 ### Drowsy Driving
+
+According to NHTSA, in [2017 91,000 crashes involved drowsy driving](https://www.nhtsa.gov/risky-driving/drowsy-driving). They also reported the following observations:
+
+- Occur most frequently between midnight and 6 a.m., or in the late afternoon. At both times of the day, people experience dips in their circadian rhythm—the human body’s internal clock that regulates sleep;
+- Often involve only a single driver (and no passengers) running off the road at a high rate of speed with no evidence of braking; and
+- Frequently occur on rural roads and highways.
+
+#### Detecting Drowsy Driving even before accidents occur
