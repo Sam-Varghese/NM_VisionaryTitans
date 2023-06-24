@@ -56,4 +56,22 @@ According to NHTSA, in [2017 91,000 crashes involved drowsy driving](https://www
 - Often involve only a single driver (and no passengers) running off the road at a high rate of speed with no evidence of braking; and
 - Frequently occur on rural roads and highways.
 
+### Side Impact Collisions
+
+Although it's more of a type of accident, still I've mentioned it here because this situation can be detected even before the occurrence of an accident.
+
+Side impact collisions happen mostly at intersections where front of a vehicle crashes with side of another vehicle forming a "T" shape.
+
+![alt](https://www.researchgate.net/publication/252014161/figure/fig1/AS:298029216223241@1448067110139/Side-collision-scenario-The-target-vehicle-is-closing-in-with-a-trajectory-visualized-in.png)
+
 #### Detecting Drowsy Driving even before accidents occur
+
+As per the observations of NHTSA, drowsy drivers don't seem to be apply brakes mostly, and this usually happens mostly between midnight and 6 a.m.
+
+**So in order to detect these situations, we can make the ML model study the braking pattern of vehicles during night time, and they may send alert if the braking pattern goes offtrack.**
+
+## Types of Road Accidents
+
+But a model still won't be able to detect all accident prone situations with 100% accuracy, hence we need to detect accidents whenever they occur, and alert the officers, hospitals, and legal servicers.
+
+### 
