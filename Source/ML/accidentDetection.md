@@ -18,7 +18,7 @@ hence there needs to be a proper study of types and causes of accidents prevaili
 
 How about detecting the situations prone to accidents, so we could avoid them even before they occur...
 
-![alt](https://cdn.pixabay.com/photo/2015/07/18/15/30/first-aid-850489_1280.jpg)
+![alt](https://cdn.pixabay.com/photo/2016/07/04/20/08/accident-1497295_1280.jpg)
 
 ### Drunk Driving Fatalities
 
