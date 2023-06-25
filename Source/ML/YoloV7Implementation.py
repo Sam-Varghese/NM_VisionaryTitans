@@ -12,13 +12,15 @@ import onnxruntime as ort
 import tensorflow as tf
 import os
 import pyttsx3
+from sort import Sort
 
 engine = pyttsx3.init()
+tracker = Sort()
 
 print("Imported necessary libraries...")
 
 cuda = True # For utilizing GPU, and performing parallel computing
-weights = "./yolov7-tiny.onnx"
+weights = "Source/ML/yolov7-tiny.onnx"
 providers = ["CUDAExecutionProvider", "CPUExecutionProvider"] if cuda else ["CPUExecutionProvider"]
 # Creating an inference session to utilize the pre build model
 session = ort.InferenceSession(weights, providers=providers)
@@ -102,8 +104,6 @@ def start_ai_cam():
             print("Camera being used by another application, unable to gain access")
             exit()
 
-        screen_width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
-        screen_height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
         # Create a named window for full screen display
         cv2.namedWindow("Live Footage", cv2.WINDOW_NORMAL)
         cv2.setWindowProperty("Live Footage", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
@@ -139,7 +139,9 @@ def start_ai_cam():
             enu_predic = enumerate(prediction)
 
             for i, prediction_array in enu_predic:
-            
+                
+                # If n objects gets detected in the frame, then prediction_array will contain n arrays inside it containing batch_id, x0, y0, x1, y1, cls_id, score
+
                 for (batch_id, x0, y0, x1, y1, cls_id, score) in prediction_array:
                     # Coordinates are of top left and bottom right
 
@@ -149,12 +151,6 @@ def start_ai_cam():
                     class_name = all_classes[int(cls_id)]
 
                     if class_name in classes:
-
-                        # Saving the image
-                        # roi = frame[int(y0): int(y1), int(x0): int(x1)]
-                        # np.concatenate(person_frames_list, roi)
-                        # person_frames_list.append(roi)
-                        # cv2.imwrite("./people/Sam/{}_image.jpg".format(img_counter), roi)
 
                         class_color = colors[class_name]
 
@@ -203,104 +199,11 @@ def get_folder_names(path: str):
 
     return folder_names
 
-def train_ml_model():
-
-    print("Initiating model training")
-    from tensorflow.keras.preprocessing.image import ImageDataGenerator
-
-    # Pass normalized image here
-
-    classes_names = get_folder_names("./people")
-
-    # Creating image data generators
-
-    datagen = ImageDataGenerator(
-        rescale = 1./255, # Normalizing pixel values
-        rotation_range = 10, 
-        width_shift_range = 0.1,
-        height_shift_range = 0.1,
-        zoom_range = 0.2,
-        horizontal_flip = True
-    )
-
-    # Flowing images from directory using ImageDataGenerator
-
-    train_generator = datagen.flow_from_directory(
-        "./people",
-        target_size = (244, 244),
-        batch_size = 16,
-        class_mode = "sparse"
-    )
-
-    ml_model = tf.keras.Sequential([
-        # Adding neural network layers
-
-        tf.keras.layers.Conv2D(32, 3, activation = "relu"),
-        tf.keras.layers.MaxPooling2D(),
-
-        tf.keras.layers.Conv2D(64, 3, activation = "relu"),
-        tf.keras.layers.MaxPooling2D(),
-
-        tf.keras.layers.Conv2D(32, 3, activation = "relu"),
-        tf.keras.layers.MaxPooling2D(),
-
-        tf.keras.layers.Conv2D(32, 3, activation = "relu"),
-        tf.keras.layers.MaxPooling2D(),
-
-        tf.keras.layers.Flatten(),
-
-        tf.keras.layers.Dense(128, activation = "relu"),
-        tf.keras.layers.Dense(len(classes_names), activation = "softmax")
-    ])
-
-    ml_model.compile(
-        optimizer = "adam",
-        loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits = False),
-        metrics = ["accuracy"]
-    )
-
-    ml_model.fit(
-        train_generator,
-        steps_per_epoch = train_generator.samples, # returns the count of total number of images in the train dataset
-        epochs = 30
-    )
-
-    ml_model.save("./savedModels/model.h5")
-
 def text_to_speech(text: str):
 
     engine.say(text)
     engine.runAndWait()
 
-def roi_tasks(save_images = False):
-    """After getting ROI (Region of Interest) image of the user, perform image identification and further proceedings. It will be accessing global variables from start_ai_cam(), to perform further computations."""
-
-    try:
-        ml_model = tf.keras.models.load_model("./savedModels/model.h5")
-
-    except Exception as e:
-        print("Encountered exception while accessing save ml model. Creating new ML model")
-        train_ml_model()
-
-    finally:
-        ml_model = tf.keras.models.load_model("./savedModels/model.h5")
-
-    # Predicting faces...
-    predictions = np.array()
-
-    # Normalizing entire person detection frames
-    person_frames_list /= 255
-
-    for face in person_frames_list:
-
-        prediction = ml_model.predict(face)
-        predictions.append(prediction)
-
-    print("All predictions: ", predictions)
-
 if __name__ == "__main__":
 
     start_ai_cam()
-    # print("Starting")
-    # text_to_speech("Sam")
-    # train_ml_model()
