@@ -1,3 +1,5 @@
+# sanskriti
+import hashlib
 import sqlite3
 import streamlit as st
 from streamlit_option_menu import option_menu
@@ -6,20 +8,22 @@ from PIL import Image
 import requests
 from streamlit_lottie import st_lottie
 
-#code block for front picture
+# code block for front picture
+
+
 def load_lottieurl(url):
-    r=requests.get(url)
+    r = requests.get(url)
     if r.status_code != 200:
         return None
     return r.json()
 
-lottie_coder =load_lottieurl("https://assets9.lottiefiles.com/packages/lf20_gxcnsfk2.json")
 
+lottie_coder = load_lottieurl(
+    "https://assets9.lottiefiles.com/packages/lf20_gxcnsfk2.json")
 
 
 # Security
 # passlib,hashlib,bcrypt,scrypt
-import hashlib
 
 
 def make_hashes(password):
@@ -44,31 +48,35 @@ def create_usertable():
 
 def add_userdata(username, password):
     c.execute('INSERT INTO userstable(username,password) VALUES (?,?)',
-            (username, password))
+              (username, password))
     conn.commit()
+
 
 def login_user(username, password):
     c.execute('SELECT * FROM userstable WHERE username =? AND password = ?',
-            (username, password))
+              (username, password))
     data = c.fetchall()
     return data
+
 
 def view_all_users():
     c.execute('SELECT * FROM userstable')
     data = c.fetchall()
     return data
 
-#change in tab icon and title:
-img = Image.open('logo_login.jpg')        
-st.set_page_config(page_title="Login Page", page_icon=img)    
 
-#Removed the footer:
-hide_menu_style=""" 
+# change in tab icon and title:
+img = Image.open('logo_login.jpg')
+st.set_page_config(page_title="Login Page", page_icon=img)
+
+# Removed the footer:
+hide_menu_style = """ 
     <style>
     footer {visibility:hidden;}
     </style>
     """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
+
 
 def main():
 
@@ -78,7 +86,8 @@ def main():
     choice = st.sidebar.selectbox("Menu", menu)
 
     if choice == "Home":
-        st.markdown("<h1 style='font-size: 18px;'>Home</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='font-size: 18px;'>Home</h1>",
+                    unsafe_allow_html=True)
         st_lottie(lottie_coder)
 
     elif choice == "Login":
@@ -90,15 +99,14 @@ def main():
             create_usertable()
             hashed_pswd = make_hashes(password)
             result = login_user(username, check_hashes(password, hashed_pswd))
-            
+
             if result:
 
                 st.success("Logged In as {}".format(username))
                 st.markdown("[Go to OpenAI](http://192.168.176.140:8501)")
-                
+
             else:
                 st.warning("Incorrect Username/Password")
-                
 
     elif choice == "SignUp":
         st.subheader("Create New Account")
@@ -110,5 +118,6 @@ def main():
             add_userdata(new_user, make_hashes(new_password))
             st.success("You have successfully created a valid Account")
             st.info("Go to Login Menu to login")
+
 
 main()
