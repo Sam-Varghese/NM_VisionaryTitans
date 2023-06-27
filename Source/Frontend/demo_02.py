@@ -2,6 +2,11 @@
 import hashlib
 import sqlite3
 import streamlit as st
+#for runnning in mac
+import sys
+
+sys.path.insert(1, "/opt/homebrew/lib/python3.11/site-packages")
+#------------------------------------------------------------------
 from streamlit_option_menu import option_menu
 import pandas as pd
 from PIL import Image
