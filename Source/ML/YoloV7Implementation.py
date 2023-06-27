@@ -36,8 +36,8 @@ all_classes = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'tra
          'hair drier', 'toothbrush']
 
 # Target classes on which I need to focus
-# classes = ["person"]
-classes = all_classes
+classes = ["person", "bus", "bicycle", "traffic light", "car"]
+# classes = all_classes
 
 # Generating random colors or bounding box of each of these classes
 
@@ -84,13 +84,48 @@ outname = [i.name for i in session.get_outputs()]
 inname = [i.name for i in session.get_inputs()]
 thickness = 2
 
-# Calculating time taken to process each frame
-start_time = time.time()
-img_counter = 1
+def distance(bbox1, bbox2):
+    return (((bbox2[1] - bbox1[1])**2) + (bbox2[0] - bbox1[0])**2)**0.5
+
+# Creating class to store details of each and every detected object
+class Object:
+    def __init__(self, object_type, class_id, bbox_coordinates):
+        self.id = object_type + str(random.randint(0, 100)) + chr(random.randint(97, 122))
+        self.class_id = class_id
+        self.bbox = bbox_coordinates
+
+    def find_worthy_child(self, new_bbox_list):
+        # print("Self BBOX: ", self.bbox)
+        # print("Global bbox list: ", new_bbox_list)
+        # input("Press enter to continue: ")
+        min_dist = abs(self.bbox[2] - self.bbox[0])/2.5
+        selected_element_index = None
+        counter = 0
+        # print("Starting anew: ")
+        for new_bbox in new_bbox_list:
+            dist = distance(self.bbox, new_bbox)
+            if(dist <= min_dist):
+                # Detected worthy child
+                min_dist = dist
+                worthy_child_bbox = new_bbox
+                selected_element_index = counter
+
+            counter += 1
+        # If no bbox has been found as a worthy child
+        if(selected_element_index == None):
+            return None
+
+        # If a bbox is found worthy
+        self.bbox = worthy_child_bbox
+        return selected_element_index
 
 # For OpenCV fonts
 font = cv2.FONT_HERSHEY_COMPLEX
 font_scale = 1.0
+
+# Calculating time taken to process each frame
+start_time = time.time()
+img_counter = 1
 
 # OpenCV camera capture
 def start_ai_cam():
@@ -109,15 +144,14 @@ def start_ai_cam():
         cv2.setWindowProperty("Live Footage", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
         # Setting frame as a global variable to make it accessible to multiple processors 
-        global frame
-        global detected_frames_list
-        detected_frames_list = []
         img_counter = 1
+
+        # Creating a list of instances of object that have been detected
+        objects_detected = {}
 
         while True:
 
             ret, frame = capture.read()
-            # frame_cpy = frame.copy()
             image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) # YOLO requires BGR images to be in RGB form
 
             resize_data = []
@@ -138,6 +172,9 @@ def start_ai_cam():
 
             enu_predic = enumerate(prediction)
 
+            new_bbox = {}
+            # colors_cls_id_name = []
+
             for i, prediction_array in enu_predic:
                 
                 # If n objects gets detected in the frame, then prediction_array will contain n arrays inside it containing batch_id, x0, y0, x1, y1, cls_id, score
@@ -147,12 +184,13 @@ def start_ai_cam():
 
                     if score < 0.5:
                         continue
-
-                    class_name = all_classes[int(cls_id)]
+                    
+                    cls_id = int(cls_id)
+                    class_name = all_classes[cls_id]
 
                     if class_name in classes:
 
-                        class_color = colors[class_name]
+                        # class_color = colors[class_name]
 
                         # Reversing the paddings and other transformations applied during letterbox
 
@@ -160,13 +198,48 @@ def start_ai_cam():
                         box -= np.array(dwdh*2)
                         box /= ratio
                         box = box.round().astype(np.int32).tolist()
+                        try:
+                            new_bbox[cls_id].append(box)
+                        except Exception:
+                            new_bbox[cls_id]=[box]
+            for class_id in list(new_bbox):
+                class_name = all_classes[class_id]
+                class_color = colors[class_name]
 
-                        roi = frame[box[1]: box[3], box[0]: box[2]]
-                        detected_frames_list.append(roi)
-                        # cv2.imwrite("./people/Sam/{}_image.jpg".format(img_counter), roi)
+                try:
+                    for obj in objects_detected[class_id]:
+                        worthy_status = obj.find_worthy_child(new_bbox[class_id])
+                        if(worthy_status != None):
+                            # print("Found a successor")
+                            # found_successor = True
+                            cv2.rectangle(frame, obj.bbox[:2], obj.bbox[2:], class_color, thickness)
+                            cv2.putText(frame, obj.id, obj.bbox[:2], font, font_scale, class_color, thickness)
+                            # print("New box list before pop: ", new_bbox[class_id])
+                            try:
+                                new_bbox[class_id].pop(worthy_status)
+                            except Exception:
+                                pass
 
-                        cv2.rectangle(frame, box[:2], box[2:], class_color, thickness)
-                        cv2.putText(frame, class_name, box[:2], font, font_scale, class_color, thickness)
+                except Exception:
+                    pass
+
+                # Creating new objects for new bboxes discovered that didn't prove as a worthy child of any existing object
+                for unused_bbox in new_bbox[class_id]:
+
+                    # Create objects of only those types, which are in the list of classes to get detected
+                    if(all_classes[class_id] not in classes):
+                        continue
+
+                    print("Creating new object of class {}".format(class_id))
+                    obj = Object(class_name, class_id, unused_bbox)
+
+                    try:
+                        objects_detected[class_id].append(obj)
+                    except Exception:
+                        objects_detected[class_id] = [obj]
+
+                    cv2.rectangle(frame, obj.bbox[:2], obj.bbox[2:], class_color, thickness)
+                    cv2.putText(frame, obj.id, obj.bbox[:2], font, font_scale, class_color, thickness)
 
             cv2.imshow("Live Footage", frame)
 

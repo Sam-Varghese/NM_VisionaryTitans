@@ -1,2 +1,5 @@
 *rough
 *.exe
+tempCodeRunnerFile
+*.python
+./tempCodeRunnerFile.python
