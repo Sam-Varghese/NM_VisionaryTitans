@@ -173,7 +173,7 @@ def start_ai_cam():
             img_counter += 1
             if (cv2.waitKey(1) == ord("q")):
                 end_time = time.time()
-                print("Avg frame processing time (time taken/ frames processed): ",(end_time- start_time)/img_counter)
+                print("Avg frame processing time (time taken/ frames processed): ",(end_time- start_time)/img_counter, " ie FPS=", img_counter*1000/(end_time-start_time))
                 break
 
     except Exception as e:
