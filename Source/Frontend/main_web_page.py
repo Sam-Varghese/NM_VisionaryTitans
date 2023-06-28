@@ -1,12 +1,18 @@
 import sqlite3
 import streamlit as st
-from jls_extract_var import option_menu
+import hydralit_components as hc
+import datetime
+#------------------------------------
+import sys
+sys.path.insert(2, "/opt/homebrew/lib/python3.11/site-packages")
+#---------------------------------------------------------------
+from streamlit_option_menu import option_menu
 import pandas as pd
 from annotated_text import annotated_text
 from PIL import Image
 #avni bhardwaj
 #change in tab icon and title:
-img = Image.open('logo_title.jpg')        
+img = Image.open('Source/Frontend/logo_login.jpg')        
 st.set_page_config(page_title="Cyber Security App", page_icon=img)    
 
 #Removed the footer:
@@ -26,13 +32,15 @@ def cctv_footages():
         st.video(video_url)
         
 def incidents_database():
-    st.title("Basic Table Example")
+    st.title("Basic Table")
     
     # Create a sample dataframe
     data = {
-        'Name': ['John', 'Emily', 'Michael'],
-        'Age': [25, 30, 28],
-        'City': ['Theft', 'Stabbed', 'Robbed']
+        'ID': [],
+        'Type': [],
+        'Cost': [],
+        'Time':[],
+        'Severity Rating':[]
     }
     df = pd.DataFrame(data)
     
@@ -40,11 +48,60 @@ def incidents_database():
     st.dataframe(df)        
     
 def programmatic_actions():
-    st.title("These are the programmatic actions")  
+    st.title("These are the programmatic actions")
+    data2={
+        'Incident ID':[],
+        'Medical Emergency':[],
+        'Legal Emergency':[],
+        'Police Aid':[]
+    }
+    df2= pd.DataFrame(data2)
+    st.dataframe(df2)
     
 def manual_actions():
     st.title("These are the manual actions") 
+    st.video("https://youtu.be/p5Gu_c_LpiA")
 
+    m = st.markdown("""
+    <style>
+    div.stButton > button:first-child {
+    background-color: #ce1126;
+    font-family=serif;
+    color: white;
+    height: 3em;
+    width: 12em;
+    border-radius:10px;
+    border:3px solid #000000;
+    font-size:20px;
+    font-weight: bold;
+    margin: auto;
+    display: block;
+    }
+
+    div.stButton > button:hover {
+	background:linear-gradient(to bottom, #ce1126 10%, #ff5a5a 100%);
+	background-color:#ce1126;
+    }
+
+    div.stButton > button:active {
+	position:relative;
+	top:3px;
+    }
+
+</style>""", unsafe_allow_html=True)
+
+
+    st.markdown('<p></p>', unsafe_allow_html = True)
+    st.markdown('<p></p>', unsafe_allow_html = True)
+    st.markdown('<p></p>', unsafe_allow_html = True)
+    b = st.button("Police Aid")
+    c = st .button("Medical aid")
+    d =st.button("Legal Aid")
+    if st.button("Severity Rating"):
+        slider= st.slider('Provide manual rating', 0, 10,1)
+        st.write("Rating is:",slider)
+        
+        
 st.title("Welcome to the App! ")
 
 selected = option_menu(
