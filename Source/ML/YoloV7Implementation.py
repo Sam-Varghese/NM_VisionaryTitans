@@ -9,13 +9,10 @@ import random
 import numpy as np
 import onnxruntime as ort
 # import multiprocessing
-import tensorflow as tf
 import os
 import pyttsx3
-from sort import Sort
 
 engine = pyttsx3.init()
-tracker = Sort()
 
 print("Imported necessary libraries...")
 
@@ -182,6 +179,7 @@ def start_ai_cam():
                 for (batch_id, x0, y0, x1, y1, cls_id, score) in prediction_array:
                     # Coordinates are of top left and bottom right
 
+                    # Allows only those detections to be shown as output whose confidence value is above a threshold
                     if score < 0.5:
                         continue
                     
@@ -207,17 +205,18 @@ def start_ai_cam():
                 class_color = colors[class_name]
 
                 try:
+                    # Allowing only the class_id objects to find their worthy child
                     for obj in objects_detected[class_id]:
                         worthy_status = obj.find_worthy_child(new_bbox[class_id])
+                        # If a bbox is found worthy
                         if(worthy_status != None):
-                            # print("Found a successor")
-                            # found_successor = True
                             cv2.rectangle(frame, obj.bbox[:2], obj.bbox[2:], class_color, thickness)
                             cv2.putText(frame, obj.id, obj.bbox[:2], font, font_scale, class_color, thickness)
-                            # print("New box list before pop: ", new_bbox[class_id])
+                            # Pop out the bbox from new_bbox as it's father has been detected
                             try:
                                 new_bbox[class_id].pop(worthy_status)
                             except Exception:
+                                # In the situation where there's no key like class_id in new_bbox
                                 pass
 
                 except Exception:
@@ -225,18 +224,18 @@ def start_ai_cam():
 
                 # Creating new objects for new bboxes discovered that didn't prove as a worthy child of any existing object
                 for unused_bbox in new_bbox[class_id]:
-
                     # Create objects of only those types, which are in the list of classes to get detected
-                    if(all_classes[class_id] not in classes):
+                    if(class_name not in classes):
                         continue
 
-                    print("Creating new object of class {}".format(class_id))
                     obj = Object(class_name, class_id, unused_bbox)
 
                     try:
                         objects_detected[class_id].append(obj)
                     except Exception:
                         objects_detected[class_id] = [obj]
+
+                    print("Creating new object instance {}".format(obj.id))
 
                     cv2.rectangle(frame, obj.bbox[:2], obj.bbox[2:], class_color, thickness)
                     cv2.putText(frame, obj.id, obj.bbox[:2], font, font_scale, class_color, thickness)
