@@ -245,7 +245,7 @@ def start_ai_cam():
             img_counter += 1
             if (cv2.waitKey(1) == ord("q")):
                 end_time = time.time()
-                print("Avg frame processing time (time taken/ frames processed): ",(end_time- start_time)/img_counter, " ie FPS=", img_counter*1000/(end_time-start_time))
+                print("Avg frame processing time (time taken/ frames processed): ",(end_time- start_time)/img_counter, " ie FPS=", img_counter/(end_time-start_time))
                 break
 
     except Exception as e:
@@ -259,17 +259,6 @@ def start_ai_cam():
 
         capture.release()
         cv2.destroyAllWindows()
-
-def get_folder_names(path: str):
-
-    folder_names = []
-
-    for entry in os.scandir(path):
-
-        if(entry.is_dir()):
-            folder_names.append(entry.name)
-
-    return folder_names
 
 def text_to_speech(text: str):
 
