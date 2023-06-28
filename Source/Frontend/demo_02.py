@@ -2,7 +2,7 @@
 import hashlib
 import sqlite3
 import streamlit as st
-#for runnning in mac
+#for calling site packages [might work with windows as well]
 import sys
 
 sys.path.insert(1, "/opt/homebrew/lib/python3.11/site-packages")
@@ -34,9 +34,24 @@ lottie_coder = load_lottieurl(
 def make_hashes(password):
     return hashlib.sha256(str.encode(password)).hexdigest()
 
+def check_password_requirements(password):
+    # Check if password meets the requirements
+    if len(password) < 8:
+        return False
+
+    if not re.search(r"[a-z]", password):
+        return False
+
+    if not re.search(r"[A-Z]", password):
+        return False
+
+    if not re.search(r"\W", password):
+        return False
+
+    return True
 
 def check_hashes(password, hashed_text):
-    if make_hashes(password) == hashed_text:
+    if make_hashes(password) == hashed_text and check_password_requirements(password):
         return hashed_text
     return False
 
@@ -71,8 +86,8 @@ def view_all_users():
 
 
 # change in tab icon and title:
-img = Image.open('logo_login.jpg')
-st.set_page_config(page_title="Login Page", page_icon=img)
+img = Image.open('/Users/avnibhardwaj/NM_VisionaryTitans/Source/Frontend/logo_login.jpg')
+#st.set_page_config(page_title="Login Page", page_icon=img)
 
 # Removed the footer:
 hide_menu_style = """ 
@@ -84,8 +99,16 @@ st.markdown(hide_menu_style, unsafe_allow_html=True)
 
 
 def main():
-
-    st.title("CYBER SECURITY LOGIN ! ")
+    
+     # Add a colorful welcome message
+    st.markdown(
+        """
+        <div style="background-color:#F63366;padding:10px;border-radius:10px">
+        <h1 style="color:white;text-align:center;">Welcome to the Cybersecurity Login App!</h1>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     menu = ["Home", "Login", "SignUp"]
     choice = st.sidebar.selectbox("Menu", menu)
