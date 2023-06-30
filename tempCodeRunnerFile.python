@@ -1,7 +1,36 @@
 import streamlit as st
-from streamlit_option_menu import option_menu
 
-with st.sidebar:
-    selected = option_menu("Main Menu", ["Home", 'Settings'], 
-        icons=['house', 'gear'], menu_icon="cast", default_index=1)
-    selected
+# Login Page
+def login_app():
+    st.title("Login")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        # Validate login credentials
+        if username == "admin" and password == "password":
+            # Set authentication status
+            st.session_state.isAuthenticated = True
+            # Redirect to main app
+            st.experimental_rerun()
+        else:
+            st.error("Invalid credentials")
+
+# Main Application Page
+def main_app():
+    st.title("Main Application")
+
+    # Check authentication status
+    if st.session_state.get("isAuthenticated"):
+        st.success("Login successful!")
+        # Show the rest of the application
+        st.write("Welcome to the main application!")
+    else:
+        st.error("You need to log in.")
+
+# Run the appropriate app based on authentication status
+if "isAuthenticated" not in st.session_state:
+    login_app()
+else:
+    main_app()

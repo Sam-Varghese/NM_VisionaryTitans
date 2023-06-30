@@ -7,6 +7,7 @@ import numpy as np
 import onnxruntime as ort
 import os
 import pyttsx3
+import multiprocessing
 
 engine = pyttsx3.init()
 
@@ -101,13 +102,9 @@ class Object:
         self.bbox = bbox_coordinates
 
     def find_worthy_child(self, new_bbox_list):
-        # print("Self BBOX: ", self.bbox)
-        # print("Global bbox list: ", new_bbox_list)
-        # input("Press enter to continue: ")
         min_dist = abs(self.bbox[2] - self.bbox[0])/2.5
         selected_element_index = None
         counter = 0
-        # print("Starting anew: ")
         for new_bbox in new_bbox_list:
             dist = distance(self.bbox, new_bbox)
             if(dist <= min_dist):
