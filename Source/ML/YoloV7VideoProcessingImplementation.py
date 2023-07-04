@@ -5,13 +5,100 @@ import time
 import random
 import numpy as np
 import onnxruntime as ort
-import os
 import pyttsx3
+import multiprocessing
+import math
+import mysql.connector
+from mysql.connector import errorcode
+import uuid
+
+# Class for dealing with database connections
+class DatabaseConnector:
+    def __init__(self):
+        self.username = "root"
+        self.password = "root"
+        self.host = "localhost"
+        self.database = "NM_VisionaryTitans"
+        self.connection = None
+
+    def connect(self):
+        try:
+            # Establish a connection to the MySQL server
+            self.connection = mysql.connector.connect(
+                user=self.username,
+                password=self.password,
+                host=self.host,
+            )
+            self.cursor = self.connection.cursor()
+
+            self.cursor.execute("CREATE DATABASE IF NOT EXISTS {}".format(self.database))
+            self.connection.commit()
+
+            self.cursor.execute("USE {}".format(self.database))
+
+            print("Connected to the database.")
+
+        except mysql.connector.Error as err:
+            if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+                print("Error: Access denied. Check your username and password.")
+            elif err.errno == errorcode.ER_BAD_DB_ERROR:
+                print("Error: The specified database does not exist.")
+            else:
+                print("An error occurred:", err)
+
+    def disconnect(self):
+        if self.connection:
+            self.connection.close()
+            print("Disconnected from the database.")
+
+    def create_tables(self):
+        try:
+
+            # Define the table creation statement
+            create_table_query = """CREATE TABLE IF NOT EXISTS realTimeTrends (
+                  id VARCHAR(255) PRIMARY KEY,
+                  StartTime VARCHAR(255) NOT NULL,
+                  EndTime VARCHAR(255) NOT NULL,
+                  PeopleCount INT,
+                  VehicleCount INT,
+                  AverageSpeed FLOAT NULL
+                )"""
+
+            # Execute the table creation statement
+            self.cursor.execute(create_table_query)
+            self.connection.commit()
+            print("Tables created successfully.")
+
+
+        except mysql.connector.Error as err:
+            print("An error occurred:", err)
+
+    def updateRealTimeTrends(self, start_time, end_time, people_count, vehicle_count, avg_speed):
+        try:
+            if(avg_speed == None):
+                avg_speed = "NULL"
+            # Define the INSERT statement
+            insert_query = """INSERT INTO realTimeTrends 
+                (Id, StartTime, EndTime, PeopleCount, VehicleCount, AverageSpeed) 
+                VALUES ('{}', '{}', '{}', {}, {}, {})""".format(str(uuid.uuid4()), start_time, end_time, people_count, vehicle_count, avg_speed)
+            print("Executing the query\n", insert_query)
+            
+            self.cursor.execute(insert_query)
+            self.connection.commit()
+
+            print("Data saved successfully to the database.")
+
+        except mysql.connector.Error as err:
+            print("An error occurred:", err)
 
 engine = pyttsx3.init()
+databaseConnector = DatabaseConnector()
+databaseConnector.connect()
+databaseConnector.create_tables()
 
 # Getting video inputs
-video_path = input("Enter the path of video to analyze: ")
+# video_path = input("Enter the path of video to analyze: ")
+video_path = "rough/traffic2.mp4"
 video_capture = cv2.VideoCapture(video_path)
 
 # Getting the video properties
@@ -42,7 +129,7 @@ all_classes = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'tra
          'hair drier', 'toothbrush']
 
 # Target classes on which I need to focus
-classes = ["person", "bus", "bicycle", "car", "truck"]
+classes = ["person", "bus", "bicycle", "car", "truck", "motorcycle"]
 # classes = all_classes
 
 # Generating random colors or bounding box of each of these classes
@@ -98,7 +185,10 @@ class Object:
     def __init__(self, object_type, class_id, bbox_coordinates):
         self.id = object_type + str(random.randint(0, 100)) + chr(random.randint(97, 122))
         self.class_id = class_id
-        self.bbox = bbox_coordinates
+        self.bbox = bbox_coordinates # [top_left_x, top_left_y, bottom_right_x, bottom_right_y]
+        self.failure_count = 0 # count of failure in detecting a worthy child
+        self.time_bbox_updates = {} # Format: {0: [bbox, time_stamp], 1: [bbox, time_stamp]}
+        self.previous_bbox = []
 
     def find_worthy_child(self, new_bbox_list):
         # print("Self BBOX: ", self.bbox)
@@ -119,7 +209,11 @@ class Object:
             counter += 1
         # If no bbox has been found as a worthy child
         if(selected_element_index == None):
+            self.failure_count += 1
             return None
+        else:
+            # Reset the failure counter
+            self.failure_count  = 0
 
         # If a bbox is found worthy
         self.bbox = worthy_child_bbox
@@ -133,8 +227,11 @@ font_scale = 1.0
 start_time = time.time()
 img_counter = 1
 
+# Variable to check if video processing is still on
+video_processor_active = True
+
 # OpenCV camera capture
-def start_ai_cam():
+def start_ai_cam(objects_detected):
     try:
 
         # Starting OpenCV Video Capture
@@ -146,9 +243,6 @@ def start_ai_cam():
 
         # Setting frame as a global variable to make it accessible to multiple processors 
         img_counter = 1
-
-        # Creating a list of instances of object that have been detected
-        objects_detected = {}
 
         while video_capture.isOpened():
 
@@ -196,8 +290,6 @@ def start_ai_cam():
 
                     if class_name in classes:
 
-                        # class_color = colors[class_name]
-
                         # Reversing the paddings and other transformations applied during letterbox
 
                         box = np.array([x0,y0,x1,y1])
@@ -214,7 +306,7 @@ def start_ai_cam():
 
                 try:
                     # Allowing only the class_id objects to find their worthy child
-                    for obj in objects_detected[class_id]:
+                    for obj in objects_detected[class_id]: # objects_detected is created in the except block first
                         worthy_status = obj.find_worthy_child(new_bbox[class_id])
                         # If a bbox is found worthy
                         if(worthy_status != None):
@@ -226,6 +318,8 @@ def start_ai_cam():
                             except Exception:
                                 # In the situation where there's no key like class_id in new_bbox
                                 pass
+                        elif (worthy_status == None and obj.failure_count >=3):
+                            objects_detected[class_id].remove(obj) # If the object didn't find any successor for 3 times in a row, then let's drop the object so tracker won't be looking for it against other bboxes all the time. reduces load significantly by preventing accumulation of instances that are no longer in the screen
 
                 except Exception:
                     pass
@@ -243,9 +337,9 @@ def start_ai_cam():
                     except Exception:
                         objects_detected[class_id] = [obj]
 
-                    print("Creating new object instance {}".format(obj.id))
+                    # print("Creating new object instance {}".format(obj.id))
 
-                    cv2.rectangle(frame, obj.bbox[:2], obj.bbox[2:], class_color, thickness)
+                    cv2.rectangle(frame, obj.bbox[:2], obj.bbox[2:], class_color, thickness) # Passing coordinates of top left and bottom right
                     cv2.putText(frame, obj.id, obj.bbox[:2], font, font_scale, class_color, thickness)
 
             output_video.write(frame)
@@ -256,6 +350,8 @@ def start_ai_cam():
                 end_time = time.time()
                 print("Avg frame processing time (time taken/ frames processed): ",(end_time- start_time)/img_counter, " ie FPS=", img_counter/(end_time-start_time))
                 break
+
+        video_processor_active = False
 
     except Exception as e:
         import traceback
@@ -270,6 +366,78 @@ def start_ai_cam():
         output_video.release()
         cv2.destroyAllWindows()
 
+def get_objects_count(objects_detected):
+    # classes = ["person", "bus", "bicycle", "car", "truck", "motorcycle"]
+    persons_count = 0
+    vehicle_count = 0
+    # print("LIst of objects detected: ", list(objects_detected))
+
+    for class_id in list(objects_detected.keys()):
+        if(class_id == 0):
+            persons_count = len(objects_detected[class_id])
+        else:
+            vehicle_count += len(objects_detected[class_id])
+    print("Counts are : ",  [persons_count, vehicle_count])
+    return [persons_count, vehicle_count]
+
+def calculate_speed(objects_detected):
+    """This function needs to run twice in order to determine the average speed of the vehicle. Make sure to reset object.time_bbox_updates to {} after running this function twice"""
+    previous_avg_speeds = []
+    objects_detected_ids = [i for i in list(objects_detected.keys()) if i != 0]
+    for id in objects_detected_ids:
+
+        for object in objects_detected[id]:
+            print("Object is ", object)
+            print("Detected object of type {}".format(object.class_id))
+            if(object.class_id != 0): # If the object's not a person
+                
+                obj_len = len(object.time_bbox_updates) # Putting the obj_len'th observation into object.time_bbox_updates
+                
+                if (obj_len < 2):
+                    object.time_bbox_updates[obj_len] = [object.bbox, time.time()]
+
+                else:
+                    obj_dist = math.dist(object.time_bbox_updates[0][:2], object.time_bbox_updates[1][:2]) # Calculating distance between top left coordinates of same object, at different time intervals
+                    obj_time = object.time_bbox_updates[1] - object.time_bbox_updates[0]
+                    previous_avg_speeds.append(obj_dist/obj_time)
+        print("Avg speeds: {}".format(previous_avg_speeds))
+        return previous_avg_speeds # the value returned when this function is executed twice is the final value
+
+def reinitialize_time_bbox_updates(objects_detected):
+    """Re-initializes the time bbox updates in order to prevent un-useful data accumulation while executing real time general data collector. Execute this after calculate_speed is run twice."""
+    objects_detected_keys = list(objects_detected.keys())
+    for id in objects_detected_keys:
+        for object in objects_detected[id]:
+            object.time_bbox_updates = {}
+
+def realTimeGeneralDataCollector(objects_detected):
+    """Records the average speed of vehicles present in the time duration of 2 seconds, along with the count of vehicles and people."""
+    time.sleep(5) # In order to let the frames get captured, and some processing done when the program is run first
+
+    # Getting all the data
+    start_time = time.strftime("%d %B, %Y %I:%M %p", time.localtime(time.time()))
+    # print("Objects detected: ", objects_detected)
+    objects_count = get_objects_count(objects_detected)
+    calculate_speed(objects_detected)
+
+    time.sleep(2) # Let the objects detected move a bit to analyze their avg speeds
+
+    avg_speeds = calculate_speed(objects_detected) # Needs to run twice
+    if avg_speeds == []:
+        avg_speed = None
+        print("No vehicles detected")
+    else:
+        avg_speed = sum(avg_speeds)/len(avg_speeds)
+    reinitialize_time_bbox_updates(objects_detected) # To prevent accumulation of data and enable expected functioning of calculate_speed
+    end_time = time.strftime("%d %B, %Y %I:%M %p", time.localtime(time.time()))
+    databaseConnector.updateRealTimeTrends(start_time, end_time, objects_count[0], objects_count[1], avg_speed)
+
+    # time.sleep(2) # Putting a random sleep statement just to start recording next set of data after some time, ie. it'll record status in approx every 5 seconds. It's safe to remove this, but a lot of data will get generated
+    print("Data saved")
+    if (video_processor_active): # If the video is also getting processed simultaneously, terminate the recursion
+
+        realTimeGeneralDataCollector(objects_detected)
+
 def text_to_speech(text: str):
 
     engine.say(text)
@@ -277,4 +445,26 @@ def text_to_speech(text: str):
 
 if __name__ == "__main__":
 
-    start_ai_cam()
+    # Creating multiple processes
+    # Performing a lot of machine learning computations can be too expensive, hence it's better to split it up among multiple processors to ensure a distributed, faster work
+
+    # Creating shared variables among multi processors because even though a variable is made global, it doesn't update for all processor tasks
+    manager = multiprocessing.Manager()
+
+    objects_detected = manager.dict()
+
+    live_yolo_detection_process = multiprocessing.Process(target = start_ai_cam, args = (objects_detected, ))
+    realTimeGenDataCollector = multiprocessing.Process(target = realTimeGeneralDataCollector, args = (objects_detected, ))
+
+    # Starting both the processes at the same time
+
+    live_yolo_detection_process.start()
+    realTimeGenDataCollector.start()
+
+    # Waiting until both the processes gets finished
+    live_yolo_detection_process.join()
+    realTimeGenDataCollector.join()
+
+    databaseConnector.disconnect()
+
+    print("Clean exited all tasks being executed by multiple processors")
