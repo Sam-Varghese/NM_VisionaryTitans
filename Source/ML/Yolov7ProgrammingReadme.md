@@ -132,3 +132,31 @@ if __name__ == '__main__':
 ```
 
 So the alternate method is to store a[key] in another variable and all the editing tasks should be done through that variable, not directly with a, later on, update the value of a[key] with b, this preserves all the editing done on instances.
+
+## Object Tracking, The Worthy Box concept
+
+The object tracking code has solely been written by [Mr. Sam Varghese](https://www.linkedin.com/in/sam-varghese2003/), no imports have been attempted to achieve object tracking.
+
+So there's a concept I had to develop in order to achieve object tracking, which I've named *The Worthy Box Concept*.
+
+Here's how it goes (this is an analogical explanation of what's coming further):
+
+1. Assume we've a father who has children standing in front of him:
+
+![Children image](../../images/children.png)
+
+2. Now he's confused which among these children is his child
+
+<img src = "../../images/confuse.png" width = "50%">
+
+3. He somehow needs to find a worthy child in order to transfer all his properties to the child.
+4. Hence he starts his new mission on finding the most worthy child among those children.
+5. There can be only 1 worthy child among them to inherit the father's properties.
+6. Hence in order for a child to become the most worthy among other, he has to fulfill certain conditions.
+
+<img src = "../../images/condition.png" width = "50%">
+
+7. Ex: one of the conditions can be that the child who is nearest to the father only qualifies to be a worthy child.
+8. Once the worthy child is found father will transfer all his property to that worthy child.
+
+<img src = "../../images/award.png" width = "50%">

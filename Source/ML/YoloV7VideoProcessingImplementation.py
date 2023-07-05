@@ -14,6 +14,7 @@ import uuid
 
 # Class for dealing with database connections
 class DatabaseConnector:
+    """For interacting with MySQL database."""
     def __init__(self):
         self.username = "root"
         self.password = "root"
@@ -22,6 +23,7 @@ class DatabaseConnector:
         self.connection = None
 
     def connect(self):
+        """Establishes python and MySQL connection, creates the database if it doesn't exist."""
         try:
             # Establish a connection to the MySQL server
             self.connection = mysql.connector.connect(
@@ -143,7 +145,6 @@ for class_name in classes:
 print("Generated random colors for object bounding boxes")
 
 def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleup=True, stride=32):
-
     """Resize and pad image while meeting stride-multiple constraints"""
     
     shape = im.shape[:2]  # current shape [height, width]
@@ -180,14 +181,14 @@ thickness = 2
 def distance(bbox1, bbox2):
     return (((bbox2[1] - bbox1[1])**2) + (bbox2[0] - bbox1[0])**2)**0.5
 
-# Creating class to store details of each and every detected object
 class Object:
+    """Creating class to store details of each and every detected object that gets detected by Yolov7"""
     def __init__(self, object_type, class_id, bbox_coordinates):
-        self.id = object_type + str(random.randint(0, 100)) + chr(random.randint(97, 122))
+        self.id = object_type + str(random.randint(0, 100)) + chr(random.randint(97, 122)) # Not unique, but mostly unique
         self.class_id = class_id
         self.bbox = bbox_coordinates # [top_left_x, top_left_y, bottom_right_x, bottom_right_y]
         self.failure_count = 0 # count of failure in detecting a worthy child
-        self.time_bbox_updates = {} # Format: {0: [bbox, time_stamp], 1: [bbox, time_stamp]}
+        self.time_bbox_updates = {} # Format: {0: [bbox, time_stamp], 1: [bbox, time_stamp]}, used for calculating speed and trajectory of object
 
     def find_worthy_child(self, new_bbox_list):
         min_dist = abs(self.bbox[2] - self.bbox[0])/2
@@ -264,6 +265,7 @@ def start_ai_cam(objects_detected, video_processor_active):
             resize_data.append((image_cpy, ratio, dwdh))
 
             # Running batch 1 inference
+            # We can speed up the video processing by opting batch 32, and 64 inference, butit's quite difficult and logically incorrect to implement it, as for 32 inference, it should wait for 32 frames to get captures, only then it'll give it's prediction.
 
             image = np.ascontiguousarray(resize_data[0][0]/255) # Normalizing the image
             prediction = session.run(outname, {"images": image})
@@ -280,7 +282,7 @@ def start_ai_cam(objects_detected, video_processor_active):
                     # Coordinates are of top left and bottom right
 
                     # Allows only those detections to be shown as output whose confidence value is above a threshold
-                    if score < 0.1:
+                    if score < 0.1: # The confidence value of predicted object
                         continue
                     
                     cls_id = int(cls_id)
@@ -333,17 +335,14 @@ def start_ai_cam(objects_detected, video_processor_active):
                     obj = Object(class_name, class_id, unused_bbox)
 
                     try:
-                        # objects_detected[class_id].append(obj)
                         obj_of_id.append(obj)
                     except Exception:
                         obj_of_id = [obj]
 
-                    # print("Creating new object instance {}".format(obj.id))
-
                     cv2.rectangle(frame, obj.bbox[:2], obj.bbox[2:], class_color, thickness) # Passing coordinates of top left and bottom right
                     cv2.putText(frame, obj.id, obj.bbox[:2], font, font_scale, class_color, thickness)
 
-                objects_detected[class_id] = obj_of_id
+                objects_detected[class_id] = obj_of_id # This is the method to update a special multi processor variable
 
             output_video.write(frame)
             cv2.imshow("Live Footage", frame)
@@ -364,13 +363,13 @@ def start_ai_cam(objects_detected, video_processor_active):
 
     finally:
 
-        video_processor_active.value = False
+        video_processor_active.value = False # This also terminates multi processor activities, enabling clean exit
         video_capture.release()
         output_video.release()
         cv2.destroyAllWindows()
 
 def get_objects_count(objects_detected):
-    # classes = ["person", "bus", "bicycle", "car", "truck", "motorcycle"]
+    """Returns the count of people and vehicles detected, assuming that there are only 2 categories that are being detected by YOLOv7, ie people, and vehicles (car, truck, etc)"""
     persons_count = 0
     vehicle_count = 0
     # print("LIst of objects detected: ", list(objects_detected))
