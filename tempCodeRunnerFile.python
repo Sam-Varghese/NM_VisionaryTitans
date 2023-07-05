@@ -2,6 +2,7 @@ class abc:
     def __init__(self):
         self.var = 5
     def change_var(self):
+        print("Attempted to change value of var to 10")
         self.var = 10
 
 if __name__ == '__main__':
@@ -11,4 +12,8 @@ if __name__ == '__main__':
     a = manager.dict()
     a[1] = [abc(), abc()]
 
-    print(a.keys())
+    for i in range(2):
+        a[1][i].change_var()
+
+    for i in range(2):
+        print(a[1][i].var)
