@@ -160,3 +160,18 @@ Here's how it goes (this is an analogical explanation of what's coming further):
 8. Once the worthy child is found father will transfer all his property to that worthy child.
 
 <img src = "../../images/award.png" width = "50%">
+
+Let's now understand how this concept has been applied to real world object detection:
+
+1. When videos or live CCTV footages are analyzed, Yolov7 detects all the targeted objects from it, and gives the top left, and bottom right coordinates of bounding box, along with the class, object belongs to, like person, car, truck, etc.
+
+![Object detection](../../images/objectDetection.png)
+
+2. The next also gets treated the same, and all the details of objects there get extracted.
+3. Now the problem is to associate the objects detected in the previous frame with the objects detected in the newly captured frame.
+4. This is where the concept of *Worthy Child* comes into play.
+5. Consider all the bounding boxes captured in the previous frame as *fathers* (analogically) and bounding boxes of the recently captured frames as *children*.
+6. As discussed above, the task of each father now will be to select the best (*worthy*) child among all.
+7. To chose the most *worthy* child, each father will firstly filter out among the children, those whose class is same as that of parent. (As bounding box of a car can't be set as a person in the next)
+8. Now the 2nd criteria for selection is set to filter out the nearest bounding box among the ones available.
+9. There's one more criteria that I've in mind, (not implemented yet) is to compare the shape of father and child's bounding boxes. Ones with most similarity can be selected.
