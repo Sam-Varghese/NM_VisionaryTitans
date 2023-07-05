@@ -33,8 +33,8 @@ all_classes = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'tra
          'hair drier', 'toothbrush']
 
 # Target classes on which I need to focus
-classes = ["person", "bus", "bicycle", "traffic light", "car"]
-# classes = all_classes
+# classes = ["person", "bus", "bicycle", "traffic light", "car"]
+classes = all_classes
 
 # Generating random colors or bounding box of each of these classes
 

@@ -98,7 +98,7 @@ databaseConnector.create_tables()
 
 # Getting video inputs
 # video_path = input("Enter the path of video to analyze: ")
-video_path = "rough/traffic2.mp4"
+video_path = "rough/accident1.mp4"
 video_capture = cv2.VideoCapture(video_path)
 
 # Getting the video properties
@@ -188,13 +188,10 @@ class Object:
         self.bbox = bbox_coordinates # [top_left_x, top_left_y, bottom_right_x, bottom_right_y]
         self.failure_count = 0 # count of failure in detecting a worthy child
         self.time_bbox_updates = {} # Format: {0: [bbox, time_stamp], 1: [bbox, time_stamp]}
-        self.previous_bbox = []
 
     def find_worthy_child(self, new_bbox_list):
-        # print("Self BBOX: ", self.bbox)
-        # print("Global bbox list: ", new_bbox_list)
-        # input("Press enter to continue: ")
-        min_dist = abs(self.bbox[2] - self.bbox[0])/2.5
+        min_dist = abs(self.bbox[2] - self.bbox[0])/2
+        min_dist = 100
         selected_element_index = None
         counter = 0
         # print("Starting anew: ")
@@ -216,7 +213,8 @@ class Object:
             self.failure_count  = 0
 
         # If a bbox is found worthy
-        self.bbox = worthy_child_bbox
+        self.bbox = worthy_child_bbox[:]
+        
         return selected_element_index
 
 # For OpenCV fonts
@@ -231,7 +229,7 @@ img_counter = 1
 video_processor_active = True
 
 # OpenCV camera capture
-def start_ai_cam(objects_detected):
+def start_ai_cam(objects_detected, video_processor_active):
     try:
 
         # Starting OpenCV Video Capture
@@ -304,9 +302,11 @@ def start_ai_cam(objects_detected):
                 class_name = all_classes[class_id]
                 class_color = colors[class_name]
 
+                # Allowing only the class_id objects to find their worthy child
+                
                 try:
-                    # Allowing only the class_id objects to find their worthy child
-                    for obj in objects_detected[class_id]: # objects_detected is created in the except block first
+                    obj_of_id = objects_detected[class_id] # needs to be reversed
+                    for obj in obj_of_id: # objects_detected is created in the except block first
                         worthy_status = obj.find_worthy_child(new_bbox[class_id])
                         # If a bbox is found worthy
                         if(worthy_status != None):
@@ -319,10 +319,10 @@ def start_ai_cam(objects_detected):
                                 # In the situation where there's no key like class_id in new_bbox
                                 pass
                         elif (worthy_status == None and obj.failure_count >=3):
-                            objects_detected[class_id].remove(obj) # If the object didn't find any successor for 3 times in a row, then let's drop the object so tracker won't be looking for it against other bboxes all the time. reduces load significantly by preventing accumulation of instances that are no longer in the screen
+                            obj_of_id.remove(obj) # If the object didn't find any successor for 3 times in a row, then let's drop the object so tracker won't be looking for it against other bboxes all the time. reduces load significantly by preventing accumulation of instances that are no longer in the screen
 
-                except Exception:
-                    pass
+                except Exception as e:
+                    obj_of_id = []
 
                 # Creating new objects for new bboxes discovered that didn't prove as a worthy child of any existing object
                 for unused_bbox in new_bbox[class_id]:
@@ -333,14 +333,17 @@ def start_ai_cam(objects_detected):
                     obj = Object(class_name, class_id, unused_bbox)
 
                     try:
-                        objects_detected[class_id].append(obj)
+                        # objects_detected[class_id].append(obj)
+                        obj_of_id.append(obj)
                     except Exception:
-                        objects_detected[class_id] = [obj]
+                        obj_of_id = [obj]
 
                     # print("Creating new object instance {}".format(obj.id))
 
                     cv2.rectangle(frame, obj.bbox[:2], obj.bbox[2:], class_color, thickness) # Passing coordinates of top left and bottom right
                     cv2.putText(frame, obj.id, obj.bbox[:2], font, font_scale, class_color, thickness)
+
+                objects_detected[class_id] = obj_of_id
 
             output_video.write(frame)
             cv2.imshow("Live Footage", frame)
@@ -351,7 +354,6 @@ def start_ai_cam(objects_detected):
                 print("Avg frame processing time (time taken/ frames processed): ",(end_time- start_time)/img_counter, " ie FPS=", img_counter/(end_time-start_time))
                 break
 
-        video_processor_active = False
 
     except Exception as e:
         import traceback
@@ -362,6 +364,7 @@ def start_ai_cam(objects_detected):
 
     finally:
 
+        video_processor_active.value = False
         video_capture.release()
         output_video.release()
         cv2.destroyAllWindows()
@@ -385,9 +388,9 @@ def calculate_speed(objects_detected):
     previous_avg_speeds = []
     objects_detected_ids = [i for i in list(objects_detected.keys()) if i != 0]
     for id in objects_detected_ids:
-
-        for object in objects_detected[id]:
-            print("Object is ", object)
+        obj_of_id = objects_detected[id]
+        
+        for object in obj_of_id:
             print("Detected object of type {}".format(object.class_id))
             if(object.class_id != 0): # If the object's not a person
                 
@@ -397,20 +400,22 @@ def calculate_speed(objects_detected):
                     object.time_bbox_updates[obj_len] = [object.bbox, time.time()]
 
                 else:
-                    obj_dist = math.dist(object.time_bbox_updates[0][:2], object.time_bbox_updates[1][:2]) # Calculating distance between top left coordinates of same object, at different time intervals
-                    obj_time = object.time_bbox_updates[1] - object.time_bbox_updates[0]
+                    obj_dist = math.dist(object.time_bbox_updates[0][0][:2], object.time_bbox_updates[1][0][:2]) # Calculating distance between top left coordinates of same object, at different time intervals
+                    obj_time = object.time_bbox_updates[1][1] - object.time_bbox_updates[0][1]
                     previous_avg_speeds.append(obj_dist/obj_time)
-        print("Avg speeds: {}".format(previous_avg_speeds))
+        objects_detected[id] = obj_of_id
         return previous_avg_speeds # the value returned when this function is executed twice is the final value
 
 def reinitialize_time_bbox_updates(objects_detected):
     """Re-initializes the time bbox updates in order to prevent un-useful data accumulation while executing real time general data collector. Execute this after calculate_speed is run twice."""
     objects_detected_keys = list(objects_detected.keys())
     for id in objects_detected_keys:
-        for object in objects_detected[id]:
+        objects_of_id = objects_detected[id]
+        for object in objects_of_id:
             object.time_bbox_updates = {}
+        objects_detected[id] = objects_of_id
 
-def realTimeGeneralDataCollector(objects_detected):
+def realTimeGeneralDataCollector(objects_detected, video_processor_active):
     """Records the average speed of vehicles present in the time duration of 2 seconds, along with the count of vehicles and people."""
     time.sleep(5) # In order to let the frames get captured, and some processing done when the program is run first
 
@@ -421,21 +426,22 @@ def realTimeGeneralDataCollector(objects_detected):
     calculate_speed(objects_detected)
 
     time.sleep(2) # Let the objects detected move a bit to analyze their avg speeds
+    calculate_speed(objects_detected)
 
     avg_speeds = calculate_speed(objects_detected) # Needs to run twice
-    if avg_speeds == []:
+    if (avg_speeds == []) or (avg_speeds == None):
         avg_speed = None
         print("No vehicles detected")
     else:
         avg_speed = sum(avg_speeds)/len(avg_speeds)
     reinitialize_time_bbox_updates(objects_detected) # To prevent accumulation of data and enable expected functioning of calculate_speed
     end_time = time.strftime("%d %B, %Y %I:%M %p", time.localtime(time.time()))
+    print("Attempting database entry...")
     databaseConnector.updateRealTimeTrends(start_time, end_time, objects_count[0], objects_count[1], avg_speed)
 
-    # time.sleep(2) # Putting a random sleep statement just to start recording next set of data after some time, ie. it'll record status in approx every 5 seconds. It's safe to remove this, but a lot of data will get generated
+    time.sleep(2) # Putting a random sleep statement just to start recording next set of data after some time, ie. it'll record status in approx every 5 seconds. It's safe to remove this, but a lot of data will get generated
     print("Data saved")
-    if (video_processor_active): # If the video is also getting processed simultaneously, terminate the recursion
-
+    if (video_processor_active.value): # If the video is also getting processed simultaneously, terminate the recursion
         realTimeGeneralDataCollector(objects_detected)
 
 def text_to_speech(text: str):
@@ -452,9 +458,10 @@ if __name__ == "__main__":
     manager = multiprocessing.Manager()
 
     objects_detected = manager.dict()
+    video_processor_active = multiprocessing.Value("b", False)
 
-    live_yolo_detection_process = multiprocessing.Process(target = start_ai_cam, args = (objects_detected, ))
-    realTimeGenDataCollector = multiprocessing.Process(target = realTimeGeneralDataCollector, args = (objects_detected, ))
+    live_yolo_detection_process = multiprocessing.Process(target = start_ai_cam, args = (objects_detected, video_processor_active))
+    realTimeGenDataCollector = multiprocessing.Process(target = realTimeGeneralDataCollector, args = (objects_detected, video_processor_active))
 
     # Starting both the processes at the same time
 

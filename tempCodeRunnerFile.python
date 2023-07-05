@@ -1,89 +1,14 @@
-import mysql.connector
-from mysql.connector import errorcode
-
-
-# Class for dealing with database connections
-class DatabaseConnector:
+class abc:
     def __init__(self):
-        self.username = "root"
-        self.password = "root"
-        self.host = "localhost"
-        self.database = "NM_VisionaryTitans"
-        self.connection = None
+        self.var = 5
+    def change_var(self):
+        self.var = 10
 
-    def connect(self):
-        # try:
-        # Establish a connection to the MySQL server
-        self.connection = mysql.connector.connect(
-            user=self.username,
-            password=self.password,
-            host=self.host,
-        )
-        self.cursor = self.connection.cursor()
+if __name__ == '__main__':
+    import multiprocessing
+    manager = multiprocessing.Manager()
 
-        self.cursor.execute("CREATE DATABASE IF NOT EXISTS {}".format(self.database))
-        self.connection.commit()
+    a = manager.dict()
+    a[1] = [abc(), abc()]
 
-        self.cursor.execute("USE {}".format(self.database))
-
-        print("Connected to the database.")
-
-        # except mysql.connector.Error as err:
-        #     if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-        #         print("Error: Access denied. Check your username and password.")
-        #     elif err.errno == errorcode.ER_BAD_DB_ERROR:
-        #         print("Error: The specified database does not exist.")
-        #     else:
-        #         print("An error occurred:", err)
-
-    def disconnect(self):
-        if self.connection:
-            self.connection.close()
-            print("Disconnected from the database.")
-
-    def create_tables(self):
-        # try:
-
-            # Define the table creation statement
-        create_table_query = """CREATE TABLE IF NOT EXISTS realTimeTrends (
-                id VARCHAR(255) PRIMARY KEY,
-                StartTime VARCHAR(255),
-                EndTime VARCHAR(255),
-                PeopleCount INT,
-                VehicleCount INT,
-                AverageSpeed FLOAT
-            )"""
-
-        # Execute the table creation statement
-        self.cursor.execute(create_table_query)
-        print("Tables created successfully.")
-
-
-        # except mysql.connector.Error as err:
-            # print("An error occurred:", err)
-
-    def updateRealTimeTrends(self, start_time, end_time, people_count, vehicle_count, avg_speed):
-        # try:
-
-            # Define the INSERT statement
-        insert_query = (
-            "INSERT INTO realTimeTrends "
-            "(StartTime, EndTime, PeopleCount, VehicleCount, AverageSpeed) "
-            "VALUES (%s, %s, %s, %s, %s)"
-        )
-
-        # Prepare the data to be inserted
-        data = (start_time, end_time, people_count, vehicle_count, avg_speed)
-
-        # Execute the INSERT statement
-        self.cursor.execute(insert_query, data)
-        self.connection.commit()
-
-        print("Data saved successfully to the database.")
-
-        # except mysql.connector.Error as err:
-            # print("An error occurred:", err)
-
-databaseConnector = DatabaseConnector()
-databaseConnector.connect()
-databaseConnector.create_tables()
+    print(a.keys())
