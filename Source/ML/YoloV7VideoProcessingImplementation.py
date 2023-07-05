@@ -178,9 +178,6 @@ outname = [i.name for i in session.get_outputs()]
 inname = [i.name for i in session.get_inputs()]
 thickness = 2
 
-def distance(bbox1, bbox2):
-    return (((bbox2[1] - bbox1[1])**2) + (bbox2[0] - bbox1[0])**2)**0.5
-
 class Object:
     """Creating class to store details of each and every detected object that gets detected by Yolov7"""
     def __init__(self, object_type, class_id, bbox_coordinates):
@@ -195,9 +192,8 @@ class Object:
         min_dist = 100
         selected_element_index = None
         counter = 0
-        # print("Starting anew: ")
         for new_bbox in new_bbox_list:
-            dist = distance(self.bbox, new_bbox)
+            dist = math.dist(self.bbox[:2], new_bbox[:2])
             if(dist <= min_dist):
                 # Detected worthy child
                 min_dist = dist
@@ -324,6 +320,7 @@ def start_ai_cam(objects_detected, video_processor_active):
                             obj_of_id.remove(obj) # If the object didn't find any successor for 3 times in a row, then let's drop the object so tracker won't be looking for it against other bboxes all the time. reduces load significantly by preventing accumulation of instances that are no longer in the screen
 
                 except Exception as e:
+                    # Will be executed if the class_id key doesn't exist in the dict objects
                     obj_of_id = []
 
                 # Creating new objects for new bboxes discovered that didn't prove as a worthy child of any existing object
@@ -344,10 +341,13 @@ def start_ai_cam(objects_detected, video_processor_active):
 
                 objects_detected[class_id] = obj_of_id # This is the method to update a special multi processor variable
 
+            # Saving the annotated frames
             output_video.write(frame)
             cv2.imshow("Live Footage", frame)
 
+            # Used to calculate the FPS of the program
             img_counter += 1
+
             if (cv2.waitKey(1) == ord("q")):
                 end_time = time.time()
                 print("Avg frame processing time (time taken/ frames processed): ",(end_time- start_time)/img_counter, " ie FPS=", img_counter/(end_time-start_time))
