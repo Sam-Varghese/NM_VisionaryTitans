@@ -83,12 +83,10 @@ class DatabaseConnector:
             insert_query = """INSERT INTO realTimeTrends 
                 (Id, StartTime, EndTime, PeopleCount, VehicleCount, AverageSpeed) 
                 VALUES ('{}', '{}', '{}', {}, {}, {})""".format(str(uuid.uuid4()), start_time, end_time, people_count, vehicle_count, avg_speed)
-            print("Executing the query\n", insert_query)
+            # print("Executing the query\n", insert_query)
             
             self.cursor.execute(insert_query)
             self.connection.commit()
-
-            print("Data saved successfully to the database.")
 
         except mysql.connector.Error as err:
             print("An error occurred:", err)
@@ -100,7 +98,7 @@ databaseConnector.create_tables()
 
 # Getting video inputs
 # video_path = input("Enter the path of video to analyze: ")
-video_path = "rough/accident1.mp4"
+video_path = "rough/accidents/cyberabad_traffic_incident1.mp4"
 video_capture = cv2.VideoCapture(video_path)
 
 # Getting the video properties
@@ -278,7 +276,7 @@ def start_ai_cam(objects_detected, video_processor_active):
                     # Coordinates are of top left and bottom right
 
                     # Allows only those detections to be shown as output whose confidence value is above a threshold
-                    if score < 0.1: # The confidence value of predicted object
+                    if score < 0.2: # The confidence value of predicted object
                         continue
                     
                     cls_id = int(cls_id)
@@ -416,7 +414,7 @@ def reinitialize_time_bbox_updates(objects_detected):
 
 def realTimeGeneralDataCollector(objects_detected, video_processor_active):
     """Records the average speed of vehicles present in the time duration of 2 seconds, along with the count of vehicles and people."""
-    time.sleep(5) # In order to let the frames get captured, and some processing done when the program is run first
+    # time.sleep(5) # In order to let the frames get captured, and some processing done when the program is run first
 
     # Getting all the data
     start_time = time.strftime("%d %B, %Y %I:%M %p", time.localtime(time.time()))
@@ -424,7 +422,7 @@ def realTimeGeneralDataCollector(objects_detected, video_processor_active):
     objects_count = get_objects_count(objects_detected)
     calculate_speed(objects_detected)
 
-    time.sleep(2) # Let the objects detected move a bit to analyze their avg speeds
+    time.sleep(0.5) # Let the objects detected move a bit to analyze their avg speeds
     calculate_speed(objects_detected)
 
     avg_speeds = calculate_speed(objects_detected) # Needs to run twice
@@ -438,10 +436,11 @@ def realTimeGeneralDataCollector(objects_detected, video_processor_active):
     print("Attempting database entry...")
     databaseConnector.updateRealTimeTrends(start_time, end_time, objects_count[0], objects_count[1], avg_speed)
 
-    time.sleep(2) # Putting a random sleep statement just to start recording next set of data after some time, ie. it'll record status in approx every 5 seconds. It's safe to remove this, but a lot of data will get generated
+    # time.sleep(2) # Putting a random sleep statement just to start recording next set of data after some time, ie. it'll record status in approx every 5 seconds. It's safe to remove this, but a lot of data will get generated
     print("Data saved")
+    print(video_processor_active.value, type(video_processor_active.value))
     if (video_processor_active.value): # If the video is also getting processed simultaneously, terminate the recursion
-        realTimeGeneralDataCollector(objects_detected)
+        realTimeGeneralDataCollector(objects_detected, video_processor_active)
 
 def text_to_speech(text: str):
 
@@ -457,8 +456,8 @@ if __name__ == "__main__":
     manager = multiprocessing.Manager()
 
     objects_detected = manager.dict()
-    video_processor_active = multiprocessing.Value("b", False)
-
+    video_processor_active = multiprocessing.Value("b", True)
+    print(video_processor_active.value)
     live_yolo_detection_process = multiprocessing.Process(target = start_ai_cam, args = (objects_detected, video_processor_active))
     realTimeGenDataCollector = multiprocessing.Process(target = realTimeGeneralDataCollector, args = (objects_detected, video_processor_active))
 
