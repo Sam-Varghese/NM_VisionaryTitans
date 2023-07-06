@@ -1,36 +1,19 @@
-import streamlit as st
+class abc:
+    def __init__(self):
+        self.var = 5
+    def change_var(self):
+        print("Attempted to change value of var to 10")
+        self.var = 10
 
-# Login Page
-def login_app():
-    st.title("Login")
+if __name__ == '__main__':
+    import multiprocessing
+    manager = multiprocessing.Manager()
 
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
+    a = manager.dict()
+    a[1] = [abc(), abc()]
 
-    if st.button("Login"):
-        # Validate login credentials
-        if username == "admin" and password == "password":
-            # Set authentication status
-            st.session_state.isAuthenticated = True
-            # Redirect to main app
-            st.experimental_rerun()
-        else:
-            st.error("Invalid credentials")
+    for i in range(2):
+        a[1][i].change_var()
 
-# Main Application Page
-def main_app():
-    st.title("Main Application")
-
-    # Check authentication status
-    if st.session_state.get("isAuthenticated"):
-        st.success("Login successful!")
-        # Show the rest of the application
-        st.write("Welcome to the main application!")
-    else:
-        st.error("You need to log in.")
-
-# Run the appropriate app based on authentication status
-if "isAuthenticated" not in st.session_state:
-    login_app()
-else:
-    main_app()
+    for i in range(2):
+        print(a[1][i].var)
