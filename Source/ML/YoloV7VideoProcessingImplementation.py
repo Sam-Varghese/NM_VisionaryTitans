@@ -10,7 +10,6 @@ import multiprocessing
 import math
 import mysql.connector
 from mysql.connector import errorcode
-import uuid
 
 # Class for dealing with database connections
 class DatabaseConnector:
@@ -21,6 +20,7 @@ class DatabaseConnector:
         self.host = "localhost"
         self.database = "NM_VisionaryTitans"
         self.connection = None
+        self.rows_inserted = 0
 
     def connect(self):
         """Establishes python and MySQL connection, creates the database if it doesn't exist."""
@@ -58,7 +58,7 @@ class DatabaseConnector:
 
             # Define the table creation statement
             create_table_query = """CREATE TABLE IF NOT EXISTS realTimeTrends (
-                  id VARCHAR(255) PRIMARY KEY,
+                  id INT AUTO_INCREMENT PRIMARY KEY,
                   StartTime VARCHAR(255) NOT NULL,
                   EndTime VARCHAR(255) NOT NULL,
                   PeopleCount INT,
@@ -79,14 +79,15 @@ class DatabaseConnector:
         try:
             if(avg_speed == None):
                 avg_speed = "NULL"
-            # Define the INSERT statement
+            # Define the INSERT statement, here UUID has been used because nor vehicle/ person't ID will be suitable to define a particular time instant
             insert_query = """INSERT INTO realTimeTrends 
-                (Id, StartTime, EndTime, PeopleCount, VehicleCount, AverageSpeed) 
-                VALUES ('{}', '{}', '{}', {}, {}, {})""".format(str(uuid.uuid4()), start_time, end_time, people_count, vehicle_count, avg_speed)
-            # print("Executing the query\n", insert_query)
+                (StartTime, EndTime, PeopleCount, VehicleCount, AverageSpeed) 
+                VALUES ('{}', '{}', {}, {}, {})""".format(start_time, end_time, people_count, vehicle_count, avg_speed)
             
             self.cursor.execute(insert_query)
             self.connection.commit()
+            self.rows_inserted += 1
+            print("Inserted {}th datapoint".format(self.rows_inserted))
 
         except mysql.connector.Error as err:
             print("An error occurred:", err)
@@ -98,7 +99,7 @@ databaseConnector.create_tables()
 
 # Getting video inputs
 # video_path = input("Enter the path of video to analyze: ")
-video_path = "rough/accidents/cyberabad_traffic_incident1.mp4"
+video_path = "Source/ML/accidents/cyberabad_traffic_incident2.mp4"
 video_capture = cv2.VideoCapture(video_path)
 
 # Getting the video properties
@@ -106,7 +107,7 @@ fps = video_capture.get(cv2.CAP_PROP_FPS)
 width = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-output_path = video_path.replace(".mp4", "_output.mp4")
+output_path = "output/"+video_path.replace(".mp4", "_output.mp4")
 fourcc = cv2.VideoWriter_fourcc(*"mp4v")
 output_video = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
@@ -376,7 +377,6 @@ def get_objects_count(objects_detected):
             persons_count = len(objects_detected[class_id])
         else:
             vehicle_count += len(objects_detected[class_id])
-    print("Counts are : ",  [persons_count, vehicle_count])
     return [persons_count, vehicle_count]
 
 def calculate_speed(objects_detected):
@@ -387,7 +387,6 @@ def calculate_speed(objects_detected):
         obj_of_id = objects_detected[id]
         
         for object in obj_of_id:
-            print("Detected object of type {}".format(object.class_id))
             if(object.class_id != 0): # If the object's not a person
                 
                 obj_len = len(object.time_bbox_updates) # Putting the obj_len'th observation into object.time_bbox_updates
@@ -398,7 +397,10 @@ def calculate_speed(objects_detected):
                 else:
                     obj_dist = math.dist(object.time_bbox_updates[0][0][:2], object.time_bbox_updates[1][0][:2]) # Calculating distance between top left coordinates of same object, at different time intervals
                     obj_time = object.time_bbox_updates[1][1] - object.time_bbox_updates[0][1]
-                    previous_avg_speeds.append(obj_dist/obj_time)
+                    try:
+                        previous_avg_speeds.append(obj_dist/obj_time)
+                    except ZeroDivisionError:
+                        print("Encountered zero division error in line 401 as obj_time is {}".format(obj_time))
         objects_detected[id] = obj_of_id
         return previous_avg_speeds # the value returned when this function is executed twice is the final value
 
@@ -416,7 +418,8 @@ def realTimeGeneralDataCollector(objects_detected, video_processor_active):
     # time.sleep(5) # In order to let the frames get captured, and some processing done when the program is run first
 
     # Getting all the data
-    start_time = time.strftime("%d %B, %Y %I:%M %p", time.localtime(time.time()))
+    start_time = time.ctime()
+
     # print("Objects detected: ", objects_detected)
     objects_count = get_objects_count(objects_detected)
     calculate_speed(objects_detected)
@@ -431,13 +434,13 @@ def realTimeGeneralDataCollector(objects_detected, video_processor_active):
     else:
         avg_speed = sum(avg_speeds)/len(avg_speeds)
     reinitialize_time_bbox_updates(objects_detected) # To prevent accumulation of data and enable expected functioning of calculate_speed
-    end_time = time.strftime("%d %B, %Y %I:%M %p", time.localtime(time.time()))
+    end_time = time.ctime()
     print("Attempting database entry...")
     databaseConnector.updateRealTimeTrends(start_time, end_time, objects_count[0], objects_count[1], avg_speed)
+    print("Data in the interval {} and {} saved".format(start_time, end_time))
 
     # time.sleep(2) # Putting a random sleep statement just to start recording next set of data after some time, ie. it'll record status in approx every 5 seconds. It's safe to remove this, but a lot of data will get generated
     print("Data saved")
-    print(video_processor_active.value, type(video_processor_active.value))
     if (video_processor_active.value): # If the video is also getting processed simultaneously, terminate the recursion
         realTimeGeneralDataCollector(objects_detected, video_processor_active)
 
