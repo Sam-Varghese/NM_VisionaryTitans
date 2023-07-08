@@ -2,7 +2,9 @@ import matplotlib.pyplot as plt
 import mysql.connector
 from mysql.connector import errorcode
 import time
+
 plt.figure(figsize=(15, 10))
+
 class DatabaseConnector:
     """For interacting with MySQL database."""
     def __init__(self):
@@ -63,7 +65,6 @@ class DatabaseConnector:
             self.connection.commit()
             print("Tables created successfully.")
 
-
         except mysql.connector.Error as err:
             print("An error occurred:", err)
 
@@ -87,7 +88,7 @@ class DatabaseConnector:
 
 
     def extract_all_data(self):
-        self.cursor.execute("SELECT * FROM REALTIMETRENDS;")
+        self.cursor.execute("SELECT * FROM {};".format(self.table))
         self.result_fetched = self.cursor.fetchall()
 
     def execute_custom_query(self, query):
@@ -115,7 +116,8 @@ class DatabaseConnector:
 
 databaseConnector = DatabaseConnector()
 databaseConnector.connect()
-databaseConnector.execute_custom_query("SELECT STARTTIME, AVERAGESPEED, VEHICLECOUNT, PEOPLECOUNT FROM REALTIMETRENDS;")
+databaseConnector.table = "cyberabad_traffic_incident1"
+databaseConnector.execute_custom_query("SELECT STARTTIME, AVERAGESPEED, VEHICLECOUNT, PEOPLECOUNT FROM {};".format(databaseConnector.table))
 data = databaseConnector.result_fetched
 
 start_times = [i[0] for i in data]
@@ -123,14 +125,12 @@ average_speeds = [i[1] if i[1] != None else 0 for i in data ]
 vehicle_count = [i[2] if i[2] != None else 0 for i in data ]
 people_count = [i[3] if i[3] != None else 0 for i in data ]
 
-# print(average_speeds)
-# plt.hist(average_speeds, 10)
 plt.xlabel("Time")
 plt.ylabel("Count")
 plt.xticks(rotation = 45*2)
 plt.plot(start_times, vehicle_count, label = "Vehicle Count")
-# plt.plot(start_times, people_count, label = "People Count")
+plt.plot(start_times, people_count, label = "People Count")
 plt.plot(start_times, average_speeds, label = "Speeds")
 plt.legend()
-plt.savefig("Source/ML/plots/VehicleCount1.png")
+plt.savefig("Source/ML/plots/{}_combine.png".format(databaseConnector.table))
 plt.show()

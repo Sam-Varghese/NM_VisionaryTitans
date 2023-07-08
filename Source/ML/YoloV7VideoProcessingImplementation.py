@@ -21,6 +21,7 @@ class DatabaseConnector:
         self.database = "NM_VisionaryTitans"
         self.connection = None
         self.rows_inserted = 0
+        self.table = None
 
     def connect(self):
         """Establishes python and MySQL connection, creates the database if it doesn't exist."""
@@ -57,14 +58,14 @@ class DatabaseConnector:
         try:
 
             # Define the table creation statement
-            create_table_query = """CREATE TABLE IF NOT EXISTS realTimeTrends (
+            create_table_query = """CREATE TABLE IF NOT EXISTS {} (
                   id INT AUTO_INCREMENT PRIMARY KEY,
                   StartTime VARCHAR(255) NOT NULL,
                   EndTime VARCHAR(255) NOT NULL,
                   PeopleCount INT,
                   VehicleCount INT,
                   AverageSpeed FLOAT NULL
-                )"""
+                )""".format(self.table)
 
             # Execute the table creation statement
             self.cursor.execute(create_table_query)
@@ -75,14 +76,14 @@ class DatabaseConnector:
         except mysql.connector.Error as err:
             print("An error occurred:", err)
 
-    def updateRealTimeTrends(self, start_time, end_time, people_count, vehicle_count, avg_speed):
+    def updateTable(self, start_time, end_time, people_count, vehicle_count, avg_speed):
         try:
             if(avg_speed == None):
                 avg_speed = "NULL"
             # Define the INSERT statement, here UUID has been used because nor vehicle/ person't ID will be suitable to define a particular time instant
-            insert_query = """INSERT INTO realTimeTrends 
+            insert_query = """INSERT INTO {} 
                 (StartTime, EndTime, PeopleCount, VehicleCount, AverageSpeed) 
-                VALUES ('{}', '{}', {}, {}, {})""".format(start_time, end_time, people_count, vehicle_count, avg_speed)
+                VALUES ('{}', '{}', {}, {}, {})""".format(self.table, start_time, end_time, people_count, vehicle_count, avg_speed)
             
             self.cursor.execute(insert_query)
             self.connection.commit()
@@ -95,12 +96,13 @@ class DatabaseConnector:
 engine = pyttsx3.init()
 databaseConnector = DatabaseConnector()
 databaseConnector.connect()
-databaseConnector.create_tables()
 
 # Getting video inputs
 # video_path = input("Enter the path of video to analyze: ")
-video_path = "Source/ML/accidents/cyberabad_traffic_incident2.mp4"
+video_path = "Source/ML/accidents/cyberabad_traffic_incident1.mp4"
+databaseConnector.table = video_path.split("/")[-1].split(".")[0]
 video_capture = cv2.VideoCapture(video_path)
+databaseConnector.create_tables()
 
 # Getting the video properties
 fps = video_capture.get(cv2.CAP_PROP_FPS)
@@ -436,7 +438,7 @@ def realTimeGeneralDataCollector(objects_detected, video_processor_active):
     reinitialize_time_bbox_updates(objects_detected) # To prevent accumulation of data and enable expected functioning of calculate_speed
     end_time = time.ctime()
     print("Attempting database entry...")
-    databaseConnector.updateRealTimeTrends(start_time, end_time, objects_count[0], objects_count[1], avg_speed)
+    databaseConnector.updateTable(start_time, end_time, objects_count[0], objects_count[1], avg_speed)
     print("Data in the interval {} and {} saved".format(start_time, end_time))
 
     # time.sleep(2) # Putting a random sleep statement just to start recording next set of data after some time, ie. it'll record status in approx every 5 seconds. It's safe to remove this, but a lot of data will get generated
