@@ -292,6 +292,7 @@ class Object:
         self.bbox = bbox_coordinates # [top_left_x, top_left_y, bottom_right_x, bottom_right_y]
         self.failure_count = 0 # count of failure in detecting a worthy child
         self.time_bbox_updates = {} # Format: {0: [bbox, time_stamp], 1: [bbox, time_stamp]}, used for calculating speed and trajectory of object
+        self.speed = None
 
     def find_worthy_child(self, new_bbox_list):
         min_dist = abs(self.bbox[2] - self.bbox[0])/2
@@ -490,11 +491,9 @@ def calculate_speed(objects_detected):
     """This function needs to run twice in order to determine the average speed of the vehicle. Make sure to reset object.time_bbox_updates to {} after running this function twice"""
     previous_avg_speeds = []
     objects_detected_ids = [i for i in list(objects_detected.keys()) if i != 0]
-    print("IDs are ", objects_detected_ids)
     for id in objects_detected_ids:
         obj_of_id = objects_detected[id]
         
-        print('working on ', id)
         for object in obj_of_id:
             if(object.class_id != 0): # If the object's not a person
                 
@@ -513,7 +512,7 @@ def calculate_speed(objects_detected):
                     except ZeroDivisionError:
                         print("Encountered zero division error in line 401 as obj_time is {}".format(obj_time))
                         speed = "NULL"
-                    print("Adding class id {} to specific table".format(object.class_id))
+                    object.speed = speed
                     databaseConnector.updateSpTable(time.ctime(), object.id, *object.bbox, speed)
         
                     
