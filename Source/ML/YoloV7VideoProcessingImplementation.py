@@ -10,7 +10,8 @@ import multiprocessing
 import math
 import mysql.connector
 from mysql.connector import errorcode
-
+from rich.console import Console
+console = Console()
 # Class for dealing with database connections
 class DatabaseConnector:
     """For interacting with MySQL database."""
@@ -199,6 +200,7 @@ databaseConnector.connect()
 # Getting video inputs
 # video_path = input("Enter the path of video to analyze: ")
 video_path = "Source/ML/accidents/cyberabad_traffic_incident4.mp4"
+# video_path = "Source/ML/Crimes/chainSnatch1.mp4"
 name = video_path.split("/")[-1].split(".")[0]
 
 databaseConnector.generalInfoTable = "gen_" + name
@@ -488,33 +490,33 @@ def get_objects_count(objects_detected):
     return [persons_count, vehicle_count]
 
 def calculate_speed(objects_detected):
-    """This function needs to run twice in order to determine the average speed of the vehicle. Make sure to reset object.time_bbox_updates to {} after running this function twice"""
+    """This function needs to run twice in order to determine the average speed of the vehicle. Make sure to reset object.time_bbox_updates to {} after running this function twice."""
     previous_avg_speeds = []
-    objects_detected_ids = [i for i in list(objects_detected.keys()) if i != 0]
+    objects_detected_ids = list(objects_detected.keys())
     for id in objects_detected_ids:
         obj_of_id = objects_detected[id]
         
         for object in obj_of_id:
-            if(object.class_id != 0): # If the object's not a person
-                
-                obj_len = len(object.time_bbox_updates) # Putting the obj_len'th observation into object.time_bbox_updates
-                
-                if (obj_len < 2): # This makes it necessary to re-initialize time_bbox_updates to reduce it's length to 0 and make this run again every time it gets to it's max length ie 2
-                    object.time_bbox_updates[obj_len] = [object.bbox, time.time()]
+            
+            obj_len = len(object.time_bbox_updates) # Putting the obj_len'th observation into object.time_bbox_updates
+            
+            if (obj_len < 2): # This makes it necessary to re-initialize time_bbox_updates to reduce it's length to 0 and make this run again every time it gets to it's max length ie 2
+                object.time_bbox_updates[obj_len] = [object.bbox, time.time()]
 
-                else:
-                    # Inserting real time coordinates of vehicles, putting it inside calculate_speed because calculate_speed runs very fast, which enables us to get a lot of data in just a few milliseconds. If you want to slow down the speed of data collection, jusst move this to the else block, where it'll be executed only once in 0.5 sec
-                    obj_dist = math.dist(object.time_bbox_updates[0][0][:2], object.time_bbox_updates[1][0][:2]) # Calculating distance between top left coordinates of same object, at different time intervals
-                    obj_time = object.time_bbox_updates[1][1] - object.time_bbox_updates[0][1]
-                    try:
-                        speed = obj_dist/obj_time
-                        previous_avg_speeds.append(speed)
-                    except ZeroDivisionError:
-                        print("Encountered zero division error in line 401 as obj_time is {}".format(obj_time))
-                        speed = "NULL"
-                    object.speed = speed
-                    databaseConnector.updateSpTable(time.ctime(), object.id, *object.bbox, speed)
-        
+            else:
+                # Inserting real time coordinates of vehicles, putting it inside calculate_speed because calculate_speed runs very fast, which enables us to get a lot of data in just a few milliseconds. If you want to slow down the speed of data collection, jusst move this to the else block, where it'll be executed only once in 0.5 sec
+                obj_dist = math.dist(object.time_bbox_updates[0][0][:2], object.time_bbox_updates[1][0][:2]) # Calculating distance between top left coordinates of same object, at different time intervals
+                obj_time = object.time_bbox_updates[1][1] - object.time_bbox_updates[0][1]
+                try:
+                    speed = obj_dist/obj_time
+                    previous_avg_speeds.append(speed)
+                except ZeroDivisionError:
+                    print("Encountered zero division error in line 401 as obj_time is {}".format(obj_time))
+                    speed = "NULL"
+                object.speed = speed # This will enable other processes to access the speed of object. I I create anymore processes, then MySQL won't work for them (As per the observations), it keeps retrieving same data time and again, in that case, this multiprocessor shared variable can help
+                print("Adding {} to the database".format(object.id))
+                databaseConnector.updateSpTable(time.ctime(), object.id, *object.bbox, speed)
+    
                     
         objects_detected[id] = obj_of_id
     return previous_avg_speeds # the value returned when this function is executed twice is the final value
@@ -556,12 +558,32 @@ def realTimeGeneralDataCollector(objects_detected, video_processor_active):
     if (video_processor_active.value): # If the video is also getting processed simultaneously, terminate the recursion
         realTimeGeneralDataCollector(objects_detected, video_processor_active)
 
-
-
 def text_to_speech(text: str):
 
     engine.say(text)
     engine.runAndWait()
+
+class Alerts:
+    def __init__(self):
+        self.alertHistory = {} # Keys: time, values: further details of the alert like cause, severity level, alert cause
+        pass
+
+    def generateAlert(self, alertBy: str, severityLevel: str, time: str, alertCause: str):
+        pass
+
+def realTimeDetection(objects_detected, video_processor_active):
+    time.sleep(0.2)
+    object_keys = list(objects_detected.keys())
+
+    # Counting all objects visible on screen
+    all_objects_count = 0
+    for id in object_keys:
+        all_objects_count += len(objects_detected[id])
+
+    if(video_processor_active.value):
+        realTimeDetection(objects_detected, video_processor_active)
+    else:
+        print("Terminating real time detector")
 
 if __name__ == "__main__":
 
@@ -570,18 +592,21 @@ if __name__ == "__main__":
 
     # Creating shared variables among multi processors because even though a variable is made global, it doesn't update for all processor tasks
     manager = multiprocessing.Manager()
-
+    
     objects_detected = manager.dict()
     video_processor_active = multiprocessing.Value("b", True)
     # Turns on the camera and starts YOLOv7 detection
     live_yolo_detection_process = multiprocessing.Process(target = start_ai_cam, args = (objects_detected, video_processor_active))
     # Calculates and stores avg speed, crowd, and vehicle count simultaneously
     realTimeGenDataCollector = multiprocessing.Process(target = realTimeGeneralDataCollector, args = (objects_detected, video_processor_active))
+    # For performing detections, using only objects_detected shared variable as mySQL connection for further processes won't work
+    realTimeDetec = multiprocessing.Process(target = realTimeDetection, args = (objects_detected, video_processor_active))
     
     # Starting both the processes at the same time
 
     live_yolo_detection_process.start()
     realTimeGenDataCollector.start()
+    realTimeDetec.start()
 
     # Waiting until both the processes gets finished
     live_yolo_detection_process.join()
