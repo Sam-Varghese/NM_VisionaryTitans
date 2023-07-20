@@ -11,6 +11,11 @@ import math
 import mysql.connector
 from mysql.connector import errorcode
 from rich.console import Console
+# Anomaly detection algo class
+import scipy.stats as stats
+import numpy as np
+from sklearn.neighbors import LocalOutlierFactor
+
 console = Console()
 # Class for dealing with database connections
 class DatabaseConnector:
@@ -104,7 +109,7 @@ class DatabaseConnector:
             self.cursor.execute(insert_query)
             self.connection.commit()
             self.gen_rows_inserted += 1
-            print("Inserted {}th datapoint of general data".format(self.gen_rows_inserted))
+            # print("Inserted {}th datapoint of general data".format(self.gen_rows_inserted))
 
         except mysql.connector.Error as err:
             print("An error occurred:", err)
@@ -118,7 +123,7 @@ class DatabaseConnector:
             self.cursor.execute(insert_query)
             self.connection.commit()
             self.sp_rows_inserted += 1
-            print("Inserted {}th datapoint of specific data".format(self.sp_rows_inserted))
+            # print("Inserted {}th datapoint of specific data".format(self.sp_rows_inserted))
 
         except mysql.connector.Error as err:
             print("An error occurred at function updateSpTable:", err)
@@ -131,67 +136,154 @@ class DatabaseConnector:
         print("All tables cleared.")
 
 # Class for performing anomaly detection
-class AnomalyDetector:
-    """Performs anomaly detection by analysing the Gaussian distribution of data points. It then computes the probability of a new data point lying in the same distribution through mean and variances. Applies welford's algorithm which can saves from excessive memory consumption and much faster computation."""
+class AnomalousMeans:
+    """For analyzing anomalous means if they appear in our set using ANOVA (f test). This program should be run after a considerable amount of time (for collecting all data points)."""
     def __init__(self):
-        # Members for getting running variance and mean, Welford's Algorithm
-        self.mean = 0
-        self.termCount = 0
-        self.m2 = 0 # Sum of squared differences from the mean
-        self.variance = 0
-        self.probability = None
-        self.term = None
+        self.checkpoints = []
+        self.newCheckpointBuffer = [] # It accumulates checkpoint data before finally sending it to checkpoints
+        self.threshold_value = 0.05
+        self.alertsInstance = None # Set this manually as this instance will be used to throw alerts
+        self.lastCheckpointTime = time.time() # To keep a track of time when the data and anomalous checks were last performed
+        self.anomalyCheckTime = 5 # Number of seconds after which data should get checked for anomaly
+        self.checkpointLimit = None #Number of checkpoint to be gathered for anomaly detection every time
 
-        # Members for anomaly detection
-        self.anomalyThreshold = 3e-3 # Min probability value to consider for declaring any data point as anomaly
+    def autoTrainerChecker(self, checkpointData: float):
+        """This function is for either adding the data, or checking for anomalous situations based on whether it has collected enough data, or does not have data for performing anomaly mean detection. These checks should happen automatically. Argument taken is a single number might be a speed, etc."""
+        if((time.time() - self.lastCheckpointTime) >= self.anomalyCheckTime): # If it's the time to add checkpoints and check for anomaly
+            self.newCheckpointBuffer.append(checkpointData)
+            self.add_checkpoint(self.newCheckpointBuffer)
+            if(len(self.checkpoints) <2):
+                pass
+            elif (len(self.checkpoints) <3):
+                self.checkMeanAnomaly()
+            elif (len(self.checkpoints) > 3):
+                self.checkpoints.pop(0) # To avoid memory leaks
+        else: # Else just keep adding data to buffer
+            if(checkpointData != None):
+                self.newCheckpointBuffer.append(checkpointData)
 
-    def compute_gaussian_probability(self, nextTerm: float):
-        """Applies Welford's algorithm to compute the probablity of a data point lying in the normal distribution (It's closeness/distance to this distribution)."""
-        self.term = nextTerm
-        # Using Welford's Algorithm
-        self.term = nextTerm
-        termCount = self.termCount + 1
-        mean = self.mean
-        delta1 = nextTerm - mean
-        mean += (delta1/termCount)
-        delta2 = nextTerm - mean
-        m2 = self.m2
-        m2 += (delta1*delta2)
+    def add_checkpoint(self, new_checkpoint):
+        """In order to compare means, it stores the new checkpoint values. Works intelligently in a way that it automatically discards older checkpoints, replaces them with newer ones."""
+        if(len(self.checkpoints) == self.checkpointLimit):
+            # Remove 0th element, add 1 list to the end of self.checkpoints
+            self.checkpoints.pop(0)
 
-        if(self.termCount <= 2):
-            print("Data insufficient for term ", self.term)
-            self.termCount = termCount + 1
-            self.mean = mean
-            self.m2 = m2
-            return None
+        # Simply add the checkpoint if the len is not checkpointLimit yet
+        self.checkpoints.append(new_checkpoint)
 
-        # Store the variance (sigma**2 where sigma is std deviation)
-        self.variance = m2/(termCount - 1)
+        self.lastCheckpointTime = time.time()
 
-        # Calculating the probability
-        self.probability = math.exp(-((nextTerm - mean) ** 2) / (2 * self.variance)) / math.sqrt(2 * math.pi * self.variance)
-        # print("{}) Probability {} for data {}".format(self.termCount, self.probability, nextTerm))
-
-        if(not self.check_anomaly()):
-            print("Preventing parameters updation by an anomaly.")
-            return None
-
-        # Parameters should not update if the data point comes out to be an anomaly, else update
-        self.termCount += 1
-        self.mean = mean
-        self.m2 = m2
-
-    def check_anomaly(self):
-        """Execute this function after compute_gaussian_probability() function, when the gaussian probability gets computed. This function will compare that probability to the threshold, and check anomalous behaviour of data points. Threshold value is set in the constructor function itself. Returns False if the data point gets detected as an anomaly, else True."""
-        if(self.probability == None):
-            return False
-        if (self.probability <= self.anomalyThreshold):
-            print("Anomaly detected: The data point is {}, and it's probability of being anomalous is {}%".format(self.term, (1-self.probability)*100))
-            return False
-        else:
-            print("Probability of being non anomalous: ", self.probability*100)
+    def checkMeanAnomaly(self):
+        # print(self.checkpoints)
+        f_statistics, p_value = stats.f_oneway(*self.checkpoints)
         
-        return True
+        if(p_value < self.threshold_value):
+            # Give an alert because the means differ significantly
+            self.alertsInstance.initiateMediumLevelAlert("Means differ significantly.")
+            return True
+        else:
+            return False
+
+class OutlierDetector:
+    """Detects outliers using Local Outlier Factory Method. Applicable for outlying coordinates and values like speeds, etc. Made to keep a continuous check on the incoming real time data."""
+    def __init__(self):
+        self.data = np.array([])
+        self.neighbours_count = 3 # Keep it low to make it more sensitive to all variations. Keeping it high lets it ignore certain variations, and only catch those who are just too much anomalous
+        self.alertsInstance = None # Set this manually as this instance will be used to throw alerts
+        self.dataLimit = 600 # Increase it to make this anomaly detection algo work more accurately, at the cost of increased memory load on embedded device
+        self.anomalyDetectionStartThreshold = 300 # After we get this much data, we can start applying anomaly detection. The max permissible data will still be self.dataLimit
+        self.anomalyThreshold = 2
+        self.detectionField = "Field"
+
+    def autoOutlierUpdaterAnomalyChecker(self, data_point):
+        """Data point should be np array, either a single number or 2 numbers indicating x and y coordinates."""
+        return_val = False
+        if(len(self.data) >= self.anomalyDetectionStartThreshold): # Else if the count of data items is atleast above the threshold value to start it, simply add the data and perform anomaly detection simultaneously
+            self.addTrainingData(data_point)
+            if(self.detectOutliers()):
+                return_val = True
+        else:
+            console.print("Not enough values to start outlier detection for ",self.detectionField , ". Currently I've ", len(self.data), " not 500", style = "red")
+            # print(self.data)
+        if(len(self.data)>=self.dataLimit):# If the data limit already exceeded
+            self.data = self.data[1:] # Keep removing elements from beginning, and appending new ones at the end. This might affect the performance a little, but for now, it won't hamper much
+            console.print("Removed an ele from outlier detection to avoid mem leak", style = "yellow")
+            self.addTrainingData(data_point)
+        else:
+            print("Trying to data of {} {}".format(self.detectionField, data_point))
+            if(data_point[0] != None):
+                self.addTrainingData(data_point)
+        return return_val
+
+    def addTrainingData(self, data_point):
+        """In order to make this algorithm work, it needs to get all the possible usual data, and then it would be able to detect any possible outliers. Remember to update this data as per current trends, so the ML model would get the feature of adapting with latest trends. For updating, all you need to do is to keep adding more and more data. Don't worry about the previous data dominating over newer data. Data point should be np array, either a single number or 2 numbers indicating x and y coordinates."""
+        print("Data point recieved for field {} is {}".format(self.detectionField, data_point))
+        if(np.any(data_point)): # If data point is not empty
+            print("Entered if")
+            data_point = data_point.reshape(1, -1)
+            # console.print("Incoming data of {} is not none.... {}, field: {}".format(self.detectionField, data_point, self.detectionField))
+            # print("Incoming data: ", data_point)
+            # print("Current dataset: ", self.data)
+            if (np.any(self.data)): # For appending data though np.vstack, it should initially have some element, shouldn't be empty
+                # self.data = data_point
+                try:
+                    # console.print("apply vstack: data = {} and data point = {} for field {}".format(self.data, data_point, self.detectionField), style = "cyan")
+                    self.data = np.vstack((self.data, data_point))
+                except Exception as e:
+                    console.print("Exception occured while applying vstack",style = "red")
+                # console.print("data is not none")
+            else:
+                self.data = data_point
+                console.print("Data is none for field {}".format(self.detectionField), style = "red")
+        else:
+            console.print("Data point is none.... for field {} {} expression comparision to None {}".format(self.detectionField, data_point, (data_point == [])), style = "red")
+
+    def detectOutliers(self):
+        console.print("Detecting outliers", style = "green")
+        lof = LocalOutlierFactor(n_neighbors=self.neighbours_count)
+        lof_scores = lof.fit_predict(self.data)
+        lof_scores = -lof.negative_outlier_factor_  # Give a quantity of how much that particular point is outlying, so it also contains the same number of elements as in self.data
+        # print("Current LOF scores = ", lof_scores, " min lof = ", np.min(lof_scores), " max lof = ", np.max(lof_scores), " mean lof = ", np.mean(lof_scores))
+        threshold = np.mean(lof_scores)*self.anomalyThreshold
+        outliers = self.data[np.logical_or(lof_scores > threshold, lof_scores < threshold*(-1))]
+        if(len(outliers) != 0):
+            self.alertsInstance.initiateMediumLevelAlert("Detected Outliers in {}.".format(self.detectionField))
+            # if(self.detectionField == "Speed"):
+                # print("Data of outlier is ", self.data)
+            return True
+        else:
+            return False
+        # Now send an alert, the level of alert can be found through getting it's lof_score
+
+class DBSCAN:
+    def __init__(self, min_radius, min_pts, alert_system):
+        self.coordinates = None
+        self.min_radius = min_radius # Set this to adjust sensitivity towards distance
+        self.min_pts = min_pts
+        self.direct_density_reachable_count = 0
+        self.core_points_count = 0
+        self.core_pt_threshold = 5 # Set this to adjust sensitivity towards crowd
+        self.alert_system = alert_system
+
+    def findClusters(self):
+        for target_coordinate in self.coordinates:
+            for coordinate in self.coordinates:
+                if(math.dist(target_coordinate, coordinate) <= self.min_radius):
+                    self.direct_density_reachable_count += 1
+
+            if(self.direct_density_reachable_count >= self.min_pts):
+                self.core_points_count += 1
+                print("Found core point ie. ", target_coordinate)
+
+            self.direct_density_reachable_count = 0
+
+        if(self.core_points_count >= self.core_pt_threshold):
+            self.alert_system.initiateMediumLevelAlert("Found clusters from DBSCAN as core points found is {} and threshold is {}".format(self.core_points_count, self.core_pt_threshold))
+            text_to_speech("Clusters detected")
+            return True
+        else:
+            print(self.core_points_count, " core points foundm which is less than ", self.core_pt_threshold)
+            return False
 
 engine = pyttsx3.init()
 databaseConnector = DatabaseConnector()
@@ -514,7 +606,7 @@ def calculate_speed(objects_detected):
                     print("Encountered zero division error in line 401 as obj_time is {}".format(obj_time))
                     speed = "NULL"
                 object.speed = speed # This will enable other processes to access the speed of object. I I create anymore processes, then MySQL won't work for them (As per the observations), it keeps retrieving same data time and again, in that case, this multiprocessor shared variable can help
-                print("Adding {} to the database".format(object.id))
+                # print("Adding {} to the database".format(object.id))
                 databaseConnector.updateSpTable(time.ctime(), object.id, *object.bbox, speed)
     
                     
@@ -566,22 +658,47 @@ def text_to_speech(text: str):
 class Alerts:
     def __init__(self):
         self.alertHistory = {} # Keys: time, values: further details of the alert like cause, severity level, alert cause
-        pass
+        self.highLevelAlert = "bold red"
+        self.mediumLevelAlert = "bold blue"
+        self.lowLevelAlert = "bold yellow"
 
-    def generateAlert(self, alertBy: str, severityLevel: str, time: str, alertCause: str):
-        pass
+    def initiateLowLevelAlert(self, cause: str):
+        console.print(cause, style = self.lowLevelAlert)
 
-def realTimeDetection(objects_detected, video_processor_active):
+    def initiateMediumLevelAlert(self, cause: str):
+        console.print(cause, style = self.mediumLevelAlert)
+
+    def initiateHighLevelAlert(self, cause: str):
+        console.print(cause, style = self.highLevelAlert)
+
+def realTimeDetection(objects_detected, video_processor_active, anomalousSpeedMeans: AnomalousMeans, anomalousCountMeans: AnomalousMeans, outlierSpeedDetector: OutlierDetector, outlierCoordinateDetector: OutlierDetector, anomalousStayTimeDetector: AnomalousMeans, dbscan: DBSCAN):
     time.sleep(0.2)
+    time.sleep(0.8)
     object_keys = list(objects_detected.keys())
-
+    all_coordinates = []
     # Counting all objects visible on screen
     all_objects_count = 0
     for id in object_keys:
         all_objects_count += len(objects_detected[id])
+        # Iterating through each and every object
+        for object in objects_detected[id]:
+            all_coordinates.append([object.bbox[0], object.bbox[1]])
+            print("Speed of object: ",object.id , " is ", object.speed)
+            anomalousSpeedMeans.autoTrainerChecker(np.array([object.speed]))
+            if(outlierSpeedDetector.autoOutlierUpdaterAnomalyChecker(np.array([object.speed]))):
+                print("Outlier in speeds")
+            if(outlierCoordinateDetector.autoOutlierUpdaterAnomalyChecker(np.array([object.bbox[0], object.bbox[1]]))):
+                 # Pass inputs as np array
+                print("Outlier in coordinates")
+    print("Performing DBSCAN analysis")
+    dbscan.coordinates = all_coordinates
+    dbscan.findClusters()
+    print("Ending DBSCAN analysis")
+
+    anomalousCountMeans.autoTrainerChecker(all_objects_count)
 
     if(video_processor_active.value):
-        realTimeDetection(objects_detected, video_processor_active)
+        realTimeDetection(objects_detected, video_processor_active, anomalousSpeedMeans, anomalousCountMeans, outlierSpeedDetector, outlierCoordinateDetector, anomalousStayTimeDetector, dbscan)
     else:
         print("Terminating real time detector")
 
@@ -595,12 +712,34 @@ if __name__ == "__main__":
     
     objects_detected = manager.dict()
     video_processor_active = multiprocessing.Value("b", True)
+    
     # Turns on the camera and starts YOLOv7 detection
     live_yolo_detection_process = multiprocessing.Process(target = start_ai_cam, args = (objects_detected, video_processor_active))
+    
     # Calculates and stores avg speed, crowd, and vehicle count simultaneously
     realTimeGenDataCollector = multiprocessing.Process(target = realTimeGeneralDataCollector, args = (objects_detected, video_processor_active))
+    
     # For performing detections, using only objects_detected shared variable as mySQL connection for further processes won't work
-    realTimeDetec = multiprocessing.Process(target = realTimeDetection, args = (objects_detected, video_processor_active))
+    anomalousSpeedMeans = AnomalousMeans() # For checking anomalus changes in the speeds of vehicles. This function compares the mean values of all data points captured, so it should run relatively less number of times
+    # anomalousSpeedMeans.anomalyCheckTime = 5 # To keep comparing the means after every 10 sec
+    anomalousCountMeans = AnomalousMeans() # For checking anomalous changes in the count of vehicles. This function compares the mean values of all data points captured, so it should run relatively less number of times
+    # anomalousCountMeans.anomalyCheckTime = 5
+    outlierSpeedDetector = OutlierDetector() # Can run in real time after inserting proper data to check real time speed anomalies
+    outlierSpeedDetector.detectionField = "Speed"
+    outlierCoordinateDetector = OutlierDetector() # For detecting objects at anomalous coordinates
+    outlierCoordinateDetector.detectionField = "Coordinates"
+    outlierCoordinateDetector.anomalyThreshold = 3
+    anomalousStayTimeDetector = AnomalousMeans() # Detect when objects stay for just too long under camera survelliance areas. During accidents, objects stop moving, people help the victims, and stay under camera for just too ling. It's made anomalous mean detector because we wanna detect anomaly of staying time for all objects combined, not just 1 or 2 individually.
+    alertSystem = Alerts()
+    dbscan = DBSCAN(100, 8, alertSystem)
+    dbscan.core_pt_threshold = 25
+
+    outlierSpeedDetector.alertsInstance = alertSystem
+    outlierCoordinateDetector.alertsInstance = alertSystem
+    anomalousStayTimeDetector.alertsInstance = alertSystem
+    anomalousSpeedMeans.alertsInstance = alertSystem
+
+    realTimeDetec = multiprocessing.Process(target = realTimeDetection, args = (objects_detected, video_processor_active, anomalousSpeedMeans, anomalousCountMeans, outlierSpeedDetector, outlierCoordinateDetector, anomalousStayTimeDetector, dbscan))
     
     # Starting both the processes at the same time
 
