@@ -138,50 +138,56 @@ class DatabaseConnector:
 # Class for performing anomaly detection
 class AnomalousMeans:
     """For analyzing anomalous means if they appear in our set using ANOVA (f test). This program should be run after a considerable amount of time (for collecting all data points)."""
-    def __init__(self):
+    def __init__(self, alertsInstance):
         self.checkpoints = []
         self.newCheckpointBuffer = [] # It accumulates checkpoint data before finally sending it to checkpoints
         self.threshold_value = 0.05
-        self.alertsInstance = None # Set this manually as this instance will be used to throw alerts
+        self.alertsInstance = alertsInstance # Set this manually as this instance will be used to throw alerts
         self.lastCheckpointTime = time.time() # To keep a track of time when the data and anomalous checks were last performed
-        self.anomalyCheckTime = 5 # Number of seconds after which data should get checked for anomaly
-        self.checkpointLimit = None #Number of checkpoint to be gathered for anomaly detection every time
+        self.anomalyCheckTime = 7 # Number of seconds after which data should get checked for anomaly
+        self.checkpointLimit = 5 #Number of checkpoint to be gathered for anomaly detection every time
+        self.detectionField = "None"
 
     def autoTrainerChecker(self, checkpointData: float):
         """This function is for either adding the data, or checking for anomalous situations based on whether it has collected enough data, or does not have data for performing anomaly mean detection. These checks should happen automatically. Argument taken is a single number might be a speed, etc."""
+        print("Trying to check anomalous means")
         if((time.time() - self.lastCheckpointTime) >= self.anomalyCheckTime): # If it's the time to add checkpoints and check for anomaly
-            self.newCheckpointBuffer.append(checkpointData)
-            self.add_checkpoint(self.newCheckpointBuffer)
-            if(len(self.checkpoints) <2):
-                pass
-            elif (len(self.checkpoints) <3):
+            self.add_checkpoint(self.newCheckpointBuffer) # Data not getting updated error
+            self.newCheckpointBuffer = [] # Reset it's value
+            if (len(self.checkpoints) > 3):
                 self.checkMeanAnomaly()
-            elif (len(self.checkpoints) > 3):
-                self.checkpoints.pop(0) # To avoid memory leaks
+                # self.checkpoints.pop(0) # To avoid memory leaks
         else: # Else just keep adding data to buffer
+            console.print("Time limit does not approve anomalous mean detection {} sec. last checkpoint time = {}, and current time = {}".format(time.time() - self.lastCheckpointTime, self.lastCheckpointTime, time.time()), style = "red")
             if(checkpointData != None):
                 self.newCheckpointBuffer.append(checkpointData)
 
     def add_checkpoint(self, new_checkpoint):
         """In order to compare means, it stores the new checkpoint values. Works intelligently in a way that it automatically discards older checkpoints, replaces them with newer ones."""
-        if(len(self.checkpoints) == self.checkpointLimit):
+        if(len(self.checkpoints) >= self.checkpointLimit):
             # Remove 0th element, add 1 list to the end of self.checkpoints
             self.checkpoints.pop(0)
 
         # Simply add the checkpoint if the len is not checkpointLimit yet
         self.checkpoints.append(new_checkpoint)
-
+        print("Updating the last checkpoint time...")
         self.lastCheckpointTime = time.time()
 
     def checkMeanAnomaly(self):
         # print(self.checkpoints)
         f_statistics, p_value = stats.f_oneway(*self.checkpoints)
-        
+        console.print("Checking mean anomaly...", style = "green")
         if(p_value < self.threshold_value):
             # Give an alert because the means differ significantly
-            self.alertsInstance.initiateMediumLevelAlert("Means differ significantly.")
+            self.alertsInstance.initiateMediumLevelAlert("Means differ significantly in {}.".format(self.detectionField))
+            console.print("Debug info: \ncheckpoints list = ", self.checkpoints)
+            # text_to_speech("Significant mean difference in {}".format(self.detectionField))
+            # print("Checkpoints are ", self.checkpoints)
+
             return True
         else:
+            console.print("Means don't differ significantly", style = "green")
+            console.print("Debug info: \ncheckpoints list = ", self.checkpoints)
             return False
 
 class OutlierDetector:
@@ -201,16 +207,18 @@ class OutlierDetector:
         if(len(self.data) >= self.anomalyDetectionStartThreshold): # Else if the count of data items is atleast above the threshold value to start it, simply add the data and perform anomaly detection simultaneously
             self.addTrainingData(data_point)
             if(self.detectOutliers()):
+                # text_to_speech("Got enough data to start outlier detection")
                 return_val = True
         else:
-            console.print("Not enough values to start outlier detection for ",self.detectionField , ". Currently I've ", len(self.data), " not 500", style = "red")
+            # console.print("Not enough values to start outlier detection for ",self.detectionField , ". Currently I've ", len(self.data), " not 500", style = "red")
+            pass
             # print(self.data)
         if(len(self.data)>=self.dataLimit):# If the data limit already exceeded
             self.data = self.data[1:] # Keep removing elements from beginning, and appending new ones at the end. This might affect the performance a little, but for now, it won't hamper much
-            console.print("Removed an ele from outlier detection to avoid mem leak", style = "yellow")
+            # console.print("Removed an ele from outlier detection to avoid mem leak", style = "yellow")
             self.addTrainingData(data_point)
         else:
-            print("Trying to data of {} {}".format(self.detectionField, data_point))
+            # print("Trying to data of {} {}".format(self.detectionField, data_point))
             if(data_point[0] != None):
                 self.addTrainingData(data_point)
         return return_val
@@ -234,9 +242,10 @@ class OutlierDetector:
                 # console.print("data is not none")
             else:
                 self.data = data_point
-                console.print("Data is none for field {}".format(self.detectionField), style = "red")
+                # console.print("Data is none for field {}".format(self.detectionField), style = "red")
         else:
-            console.print("Data point is none.... for field {} {} expression comparision to None {}".format(self.detectionField, data_point, (data_point == [])), style = "red")
+            # console.print("Data point is none.... for field {} {} expression comparision to None {}".format(self.detectionField, data_point, (data_point == [])), style = "red")
+            pass
 
     def detectOutliers(self):
         console.print("Detecting outliers", style = "green")
@@ -248,6 +257,8 @@ class OutlierDetector:
         outliers = self.data[np.logical_or(lof_scores > threshold, lof_scores < threshold*(-1))]
         if(len(outliers) != 0):
             self.alertsInstance.initiateMediumLevelAlert("Detected Outliers in {}.".format(self.detectionField))
+            text_to_speech("Detected outlier in {}".format(self.detectionField))
+            print("Data of outlier is ", self.data)
             # if(self.detectionField == "Speed"):
                 # print("Data of outlier is ", self.data)
             return True
@@ -259,11 +270,12 @@ class DBSCAN:
     def __init__(self, min_radius, min_pts, alert_system):
         self.coordinates = None
         self.min_radius = min_radius # Set this to adjust sensitivity towards distance
-        self.min_pts = min_pts
+        self.min_pts = min_pts # Minimum points to come inside the circle in order to call it a core point
         self.direct_density_reachable_count = 0
         self.core_points_count = 0
         self.core_pt_threshold = 5 # Set this to adjust sensitivity towards crowd
         self.alert_system = alert_system
+        self.single_time_runner = 0 # Just a variable to use in order to make a function run only once
 
     def findClusters(self):
         for target_coordinate in self.coordinates:
@@ -273,17 +285,47 @@ class DBSCAN:
 
             if(self.direct_density_reachable_count >= self.min_pts):
                 self.core_points_count += 1
-                print("Found core point ie. ", target_coordinate)
+                # print("Found core point ie. ", target_coordinate)
 
             self.direct_density_reachable_count = 0
 
         if(self.core_points_count >= self.core_pt_threshold):
             self.alert_system.initiateMediumLevelAlert("Found clusters from DBSCAN as core points found is {} and threshold is {}".format(self.core_points_count, self.core_pt_threshold))
-            text_to_speech("Clusters detected")
+            # text_to_speech("Clusters detected")
+            self.core_points_count = 0 # Reinitialize
+
             return True
         else:
-            print(self.core_points_count, " core points foundm which is less than ", self.core_pt_threshold)
+            # print(self.core_points_count, " core points found which is less than ", self.core_pt_threshold)
+            # print("Coordinates list: ",self.coordinates, " radius = ", self.min_radius, " min pts = ", self.min_pts)
+            self.core_points_count = 0 # Reinitialize
             return False
+        
+    def autoAdjustParameters(self, sample_radius: float):
+        """Provide sample radius value for initialization, and coordinates"""
+        if(self.single_time_runner%20 == 0): # Update parameters in every 20 times
+            self.single_time_runner += 1
+            return False
+        
+        direct_density_reachable_count_array = np.array([])
+        direct_density_reachable_count = 0
+
+        for target_coordinate in self.coordinates:
+            for coordinate in self.coordinates:
+                if(math.dist(target_coordinate, coordinate) <= sample_radius):
+                    direct_density_reachable_count += 1
+
+            direct_density_reachable_count_array = np.append(direct_density_reachable_count_array, direct_density_reachable_count)
+            direct_density_reachable_count = 0
+
+        self.min_pts = np.mean(direct_density_reachable_count_array)*1.5 # Auto set the min _pts
+        self.core_pt_threshold = len(self.coordinates)/2
+        if(self.core_points_count >= 30):
+            self.core_pt_threshold = 30
+        elif(self.core_points_count <= 10):
+            self.core_pt_threshold = 12
+
+        self.single_time_runner += 1
 
 engine = pyttsx3.init()
 databaseConnector = DatabaseConnector()
@@ -291,8 +333,8 @@ databaseConnector.connect()
 
 # Getting video inputs
 # video_path = input("Enter the path of video to analyze: ")
-video_path = "Source/ML/accidents/cyberabad_traffic_incident4.mp4"
-# video_path = "Source/ML/Crimes/chainSnatch1.mp4"
+# video_path = "Source/ML/accidents/cyberabad_traffic_incident2.mp4"
+video_path = "Source/ML/Crimes/chainSnatch1.mp4"
 name = video_path.split("/")[-1].split(".")[0]
 
 databaseConnector.generalInfoTable = "gen_" + name
@@ -678,11 +720,13 @@ def realTimeDetection(objects_detected, video_processor_active, anomalousSpeedMe
     all_coordinates = []
     # Counting all objects visible on screen
     all_objects_count = 0
+    mean_x_width = np.array([]) # To give a sample rad to 
     for id in object_keys:
         all_objects_count += len(objects_detected[id])
         # Iterating through each and every object
         for object in objects_detected[id]:
             all_coordinates.append([object.bbox[0], object.bbox[1]])
+            mean_x_width = np.append(mean_x_width, object.bbox[2] - object.bbox[0])
             print("Speed of object: ",object.id , " is ", object.speed)
             anomalousSpeedMeans.autoTrainerChecker(np.array([object.speed]))
             if(outlierSpeedDetector.autoOutlierUpdaterAnomalyChecker(np.array([object.speed]))):
@@ -692,6 +736,7 @@ def realTimeDetection(objects_detected, video_processor_active, anomalousSpeedMe
                 print("Outlier in coordinates")
     print("Performing DBSCAN analysis")
     dbscan.coordinates = all_coordinates
+    dbscan.autoAdjustParameters(np.mean(mean_x_width))
     dbscan.findClusters()
     print("Ending DBSCAN analysis")
 
@@ -716,21 +761,23 @@ if __name__ == "__main__":
     # Turns on the camera and starts YOLOv7 detection
     live_yolo_detection_process = multiprocessing.Process(target = start_ai_cam, args = (objects_detected, video_processor_active))
     
+    alertSystem = Alerts()
     # Calculates and stores avg speed, crowd, and vehicle count simultaneously
     realTimeGenDataCollector = multiprocessing.Process(target = realTimeGeneralDataCollector, args = (objects_detected, video_processor_active))
     
     # For performing detections, using only objects_detected shared variable as mySQL connection for further processes won't work
-    anomalousSpeedMeans = AnomalousMeans() # For checking anomalus changes in the speeds of vehicles. This function compares the mean values of all data points captured, so it should run relatively less number of times
+    anomalousSpeedMeans = AnomalousMeans(alertSystem) # For checking anomalus changes in the speeds of vehicles. This function compares the mean values of all data points captured, so it should run relatively less number of times
+    anomalousSpeedMeans.detectionField = "Speed"
     # anomalousSpeedMeans.anomalyCheckTime = 5 # To keep comparing the means after every 10 sec
-    anomalousCountMeans = AnomalousMeans() # For checking anomalous changes in the count of vehicles. This function compares the mean values of all data points captured, so it should run relatively less number of times
+    anomalousCountMeans = AnomalousMeans(alertSystem) # For checking anomalous changes in the count of vehicles. This function compares the mean values of all data points captured, so it should run relatively less number of times
+    anomalousCountMeans.detectionField = "Vehicle count"
     # anomalousCountMeans.anomalyCheckTime = 5
     outlierSpeedDetector = OutlierDetector() # Can run in real time after inserting proper data to check real time speed anomalies
     outlierSpeedDetector.detectionField = "Speed"
     outlierCoordinateDetector = OutlierDetector() # For detecting objects at anomalous coordinates
     outlierCoordinateDetector.detectionField = "Coordinates"
     outlierCoordinateDetector.anomalyThreshold = 3
-    anomalousStayTimeDetector = AnomalousMeans() # Detect when objects stay for just too long under camera survelliance areas. During accidents, objects stop moving, people help the victims, and stay under camera for just too ling. It's made anomalous mean detector because we wanna detect anomaly of staying time for all objects combined, not just 1 or 2 individually.
-    alertSystem = Alerts()
+    anomalousStayTimeDetector = AnomalousMeans(alertSystem) # Detect when objects stay for just too long under camera survelliance areas. During accidents, objects stop moving, people help the victims, and stay under camera for just too ling. It's made anomalous mean detector because we wanna detect anomaly of staying time for all objects combined, not just 1 or 2 individually.
     dbscan = DBSCAN(100, 8, alertSystem)
     dbscan.core_pt_threshold = 25
 
