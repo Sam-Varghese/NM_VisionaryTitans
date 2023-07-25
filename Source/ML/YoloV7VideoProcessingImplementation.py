@@ -15,7 +15,7 @@ from mysql.connector import errorcode
 class DatabaseConnector:
     """For interacting with MySQL database."""
     def __init__(self):
-        self.username = "root"
+        self.username = "admin"
         self.password = "root"
         self.host = "localhost"
         self.database = "NM_VisionaryTitans"

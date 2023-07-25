@@ -20,9 +20,9 @@ import plotly.express as px
 import matplotlib.pyplot as plt
 
 #change in tab icon and title:
-img = Image.open('logo_title.jpg')
+#img = Image.open('logo_title.jpg')
 layout="wide"
-st.set_page_config(page_title="Cyber Security App", page_icon=img, layout=layout)
+st.set_page_config(page_title="Cyber Security App", page_icon="logo_title.jpg", layout=layout)
 
 
 # Removed the footer:
@@ -199,49 +199,43 @@ def manual_actions():
         st.write('Highly Severe !')
 
 def report():
-    # LINE Graph
-    data1 = {
-    'State': ['MP', 'MH', 'Guj', 'Raj', 'KL', 'UP', 'HP','J&K', 'KA','AS'],
-    'Violence Count': [6, 10, 15, 12, 20, 25, 18, 10,15, 27]
-    }
-    df = pd.DataFrame(data1)
-    fig, ax = plt.subplots()
-    ax.plot(df['State'], df['Violence Count'])
-    ax.set(xlabel='State', ylabel='Violence Count', title='Violence Count by State')
-    ax.grid()
+    df = pd.read_csv("dataset.csv")
+    st.title("Real-Time / Live Data Science Dashboard")
+    job_filter = st.selectbox("Select the Job", pd.unique(df['job']))
+    # creating a single-element container.
+    placeholder = st.empty()
+    # dataframe filter
+    df = df[df['job'] == job_filter]
+    # near real-time / live feed simulation
+    for seconds in range(200):
+        df['age_new'] = df['age'] * np.random.choice(range(1, 5))
+        df['balance_new'] = df['balance'] * np.random.choice(range(1, 5))
+        # creating KPIs
+        avg_age = np.mean(df['age_new'])
+        count_married = int(df[(df["marital"] == 'married')]
+            ['marital'].count() + np.random.choice(range(1, 30)))
+        balance = np.mean(df['balance_new'])
 
-    # BAR Graph
-    st.pyplot(fig)
-    data2 = {
-    'Category': ['A', 'B', 'C', 'D','E','F','G'],
-    'Value': [25, 40, 30, 20, 50, 25, 70]
-    }
-    df = pd.DataFrame(data2)
-    # Create a bar graph using matplotlib
-    fig, ax = plt.subplots()
-    ax.bar(df['Category'], df['Value'])
-    ax.set_xlabel('Category')
-    ax.set_ylabel('Value')
-    ax.set_title('Bar Graph')
+        with placeholder.container():
+            kpi1, kpi2, kpi3 = st.columns(3)
+            kpi1.metric(label="Age ⏳", value=round(
+            avg_age), delta=round(avg_age) - 10)
+            kpi2.metric(label="Married Count 💍", value=int(
+            count_married), delta=- 10 + count_married)
+            kpi3.metric(label="A/C Balance ＄",
+                    value=f"$ {round(balance,2)} ", delta=- round(balance/count_married) * 100)
 
-    # Display the bar graph using Streamlit
-    st.pyplot(fig)
+            # create two columns for charts
+            fig_col1, fig_col2 = st.columns(2)
+            with fig_col1:
+                st.markdown("### First Chart")
+                fig = px.density_heatmap(data_frame=df, y='age_new', x='marital')
+                st.write(fig)
+            with fig_col2:
+                st.markdown("### Second Chart")
+                fig2 = px.histogram(data_frame=df, x='age_new')
+                st.write(fig2)
     
-    #HISTOGRAM Graph
-    data3 = {
-    'X': [1, 2, 3, 4, 5],
-    'Y': [5, 7, 3, 8, 4]
-    }
-    df = pd.DataFrame(data3)
-    # Create a scatter plot using matplotlib
-    fig, ax = plt.subplots()
-    ax.scatter(df['X'], df['Y'])
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_title('Scatter Plot')
-
-    # Display the scatter plot using Streamlit
-    st.pyplot(fig)
 
 # Main Application Page
 def main_app():
