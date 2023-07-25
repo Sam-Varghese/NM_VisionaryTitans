@@ -4,7 +4,6 @@ import base64
 import streamlit as st
 from streamlit_option_menu import option_menu
 import pandas as pd
-from annotated_text import annotated_text
 import re
 import numpy as np
 from PIL import Image
@@ -20,7 +19,7 @@ import json
 import plotly.express as px
 
 #change in tab icon and title:
-img = Image.open('logo_title.jpg')
+img = Image.open('images/logo_title.jpg')
 st.set_page_config(page_title="Cyber Security App", page_icon=img)
 
 css = '''

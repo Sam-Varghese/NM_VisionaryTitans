@@ -76,7 +76,6 @@ def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleu
     im = cv2.copyMakeBorder(im, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  # add border
     return im, r, (dw, dh)
 
-
 outname = [i.name for i in session.get_outputs()]
 inname = [i.name for i in session.get_inputs()]
 thickness = 2

@@ -334,7 +334,9 @@ databaseConnector.connect()
 # Getting video inputs
 # video_path = input("Enter the path of video to analyze: ")
 # video_path = "Source/ML/accidents/cyberabad_traffic_incident2.mp4"
-video_path = "Source/ML/Crimes/chainSnatch1.mp4"
+video_path = "Source/ML/accidents/pakistan_accident_1.mp4"
+
+# video_path = "Source/ML/Crimes/chainSnatch1.mp4"
 name = video_path.split("/")[-1].split(".")[0]
 
 databaseConnector.generalInfoTable = "gen_" + name
