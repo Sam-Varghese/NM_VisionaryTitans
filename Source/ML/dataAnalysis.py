@@ -69,6 +69,7 @@ class DatabaseConnector:
             print("An error occurred:", err)
 
     def updateRealTimeTrends(self, start_time, end_time, people_count, vehicle_count, avg_speed):
+        
         try:
             if(avg_speed == None):
                 avg_speed = "NULL"
@@ -76,7 +77,6 @@ class DatabaseConnector:
             insert_query = """INSERT INTO realTimeTrends 
                 (Id, StartTime, EndTime, PeopleCount, VehicleCount, AverageSpeed) 
                 VALUES ('{}', '{}', '{}', {}, {}, {})""".format(str(uuid.uuid4()), start_time, end_time, people_count, vehicle_count, avg_speed)
-            # print("Executing the query\n", insert_query)
             
             self.cursor.execute(insert_query)
             self.connection.commit()
@@ -86,7 +86,6 @@ class DatabaseConnector:
         except mysql.connector.Error as err:
             print("An error occurred:", err)
 
-
     def extract_all_data(self):
         self.cursor.execute("SELECT * FROM {};".format(self.table))
         self.result_fetched = self.cursor.fetchall()
@@ -94,6 +93,7 @@ class DatabaseConnector:
     def execute_custom_query(self, query):
         self.cursor.execute(query)
         self.result_fetched = self.cursor.fetchall()
+        return self.result_fetched
 
     def calculate_time_difference(self, time1, time2):
         # Convert time strings to time objects
@@ -116,21 +116,16 @@ class DatabaseConnector:
 
 databaseConnector = DatabaseConnector()
 databaseConnector.connect()
-databaseConnector.table = "cyberabad_traffic_incident1"
-databaseConnector.execute_custom_query("SELECT STARTTIME, AVERAGESPEED, VEHICLECOUNT, PEOPLECOUNT FROM {};".format(databaseConnector.table))
+databaseConnector.table = "sp_chainsnatch1"
+databaseConnector.execute_custom_query("select count(vehiclename), time, avg(speed) from sp_chainsnatch1 where vehicleName like 'p%' group by time;")
 data = databaseConnector.result_fetched
-
-start_times = [i[0] for i in data]
-average_speeds = [i[1] if i[1] != None else 0 for i in data ]
-vehicle_count = [i[2] if i[2] != None else 0 for i in data ]
-people_count = [i[3] if i[3] != None else 0 for i in data ]
-
-plt.xlabel("Time")
-plt.ylabel("Count")
+times = [i[1] for i in data]
+peopleCount = [i[0] for i in data]
+speeds = [i[2] for i in data]
+plt.xlabel("people count")
+plt.ylabel("Speeds")
 plt.xticks(rotation = 45*2)
-plt.plot(start_times, vehicle_count, label = "Vehicle Count")
-plt.plot(start_times, people_count, label = "People Count")
-plt.plot(start_times, average_speeds, label = "Speeds")
+plt.plot(times, speeds, label = "Person speeds")
 plt.legend()
-plt.savefig("Source/ML/plots/{}_combine.png".format(databaseConnector.table))
+# # plt.savefig("Source/ML/plots/{}_combine.png".format(databaseConnector.table))
 plt.show()

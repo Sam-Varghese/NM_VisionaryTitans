@@ -20,9 +20,9 @@ import plotly.express as px
 import matplotlib.pyplot as plt
 
 #change in tab icon and title:
-#img = Image.open('logo_title.jpg')
+img = Image.open('logo_title.jpg')
 layout="wide"
-st.set_page_config(page_title="Cyber Security App", page_icon="logo_title.jpg", layout=layout)
+st.set_page_config(page_title="Cyber Security App", page_icon=img, layout=layout)
 
 
 # Removed the footer:
@@ -235,7 +235,6 @@ def report():
                 st.markdown("### Second Chart")
                 fig2 = px.histogram(data_frame=df, x='age_new')
                 st.write(fig2)
-    
 
 # Main Application Page
 def main_app():
