@@ -20,7 +20,7 @@ import plotly.express as px
 import matplotlib.pyplot as plt
 
 #change in tab icon and title:
-img = Image.open('logo_title.jpg')
+img = Image.open('Source/Frontend/logo_title.jpg')
 layout="wide"
 st.set_page_config(page_title="Cyber Security App", page_icon=img, layout=layout)
 
@@ -110,7 +110,7 @@ def view_all_users():
 def cctv_footages():
     st.markdown(css, unsafe_allow_html=True)
     st.markdown("<h3 style='text-align: center;'>Video Player</h3>", unsafe_allow_html=True)
-    video_url = r"C:\Users\Lenovo\Desktop\WEB_DEVELOPMENT\accident_footage.mp4"
+    video_url = r"D:\VS Code Workspace\Fair Space\GitHub\NM_VisionaryTitans\Source\Frontend\accident_footage.mp4"
 
     if video_url:
         st.video(video_url)
@@ -122,7 +122,7 @@ def cctv_footages():
         play_button = st.button("Play")
 
         # Video playback
-        video_path = r"C:\Users\Lenovo\Desktop\WEB_DEVELOPMENT\accident_footage.mp4"
+        video_path = r"D:\VS Code Workspace\Fair Space\GitHub\NM_VisionaryTitans\Source\Frontend\accident_footage.mp4"
 
         # Checking  play button is clicked
         if play_button:
@@ -176,7 +176,7 @@ def programmatic_actions():
 
 def manual_actions():
     st.markdown(css, unsafe_allow_html=True)
-    video_url = r"C:\Users\Lenovo\Desktop\WEB_DEVELOPMENT\accident_footage.mp4"
+    video_url = r"D:\VS Code Workspace\Fair Space\GitHub\NM_VisionaryTitans\Source\Frontend\accident_footage.mp4"
     if video_url:
         st.video(video_url)
 
@@ -199,8 +199,8 @@ def manual_actions():
         st.write('Highly Severe !')
 
 def report():
-    df = pd.read_csv("dataset.csv")
-    st.title("Real-Time / Live Data Science Dashboard")
+    df = pd.read_csv("Source/Frontend/dataset.csv")
+    st.title("Real-Time Report")
     job_filter = st.selectbox("Select the Job", pd.unique(df['job']))
     # creating a single-element container.
     placeholder = st.empty()
@@ -218,12 +218,12 @@ def report():
 
         with placeholder.container():
             kpi1, kpi2, kpi3 = st.columns(3)
-            kpi1.metric(label="Age ⏳", value=round(
+            kpi1.metric(label="Incidents Count 🤕", value=round(
             avg_age), delta=round(avg_age) - 10)
-            kpi2.metric(label="Married Count 💍", value=int(
+            kpi2.metric(label="Accidents Count 🚗", value=int(
             count_married), delta=- 10 + count_married)
-            kpi3.metric(label="A/C Balance ＄",
-                    value=f"$ {round(balance,2)} ", delta=- round(balance/count_married) * 100)
+            kpi3.metric(label="Alerts Sent 🚨",
+                    value=f"{round(balance,2)} ", delta=- round(balance/count_married) * 100)
 
             # create two columns for charts
             fig_col1, fig_col2 = st.columns(2)
