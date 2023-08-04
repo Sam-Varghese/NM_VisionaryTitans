@@ -194,14 +194,11 @@ class AnomalousMeans:
         except Exception as e:
             print("Unable to perform f test because ", e)
             print("Checkpoints are ", [i for i in self.checkpoints if len(i)!=0])
-            text_to_speech("Failed performing f test")
-            print()
         console.print("Checking mean anomaly...", style = "green")
         if(p_value < self.threshold_value):
             # Give an alert because the means differ significantly
             self.alertsInstance.initiateMediumLevelAlert("Means differ significantly in {}.".format(self.detectionField))
             console.print("Debug info: \ncheckpoints list = ", self.checkpoints)
-            text_to_speech("Significant mean difference in {}".format(self.detectionField))
             # print("Checkpoints are ", self.checkpoints)
 
             return True
@@ -217,8 +214,8 @@ class OutlierDetector:
         self.data = np.array([])
         self.neighbours_count = 3 # Keep it low to make it more sensitive to all variations. Keeping it high lets it ignore certain variations, and only catch those who are just too much anomalous
         self.alertsInstance = None # Set this manually as this instance will be used to throw alerts
-        self.dataLimit = 600 # Increase it to make this anomaly detection algo work more accurately, at the cost of increased memory load on embedded device
-        self.anomalyDetectionStartThreshold = 300 # After we get this much data, we can start applying anomaly detection. The max permissible data will still be self.dataLimit
+        self.dataLimit = 1000 # Increase it to make this anomaly detection algo work more accurately, at the cost of increased memory load on embedded device
+        self.anomalyDetectionStartThreshold = 500 # After we get this much data, we can start applying anomaly detection. The max permissible data will still be self.dataLimit
         self.anomalyThreshold = 2.5
         self.detectionField = "Field"
 
@@ -278,7 +275,6 @@ class OutlierDetector:
         if(len(outliers) != 0):
             self.alertsInstance.initiateMediumLevelAlert("Detected Outliers in {}.".format(self.detectionField))
             
-            # text_to_speech("Detected outlier in {}".format(self.detectionField))
             # print("Current LOF scores = ", lof_scores, " min lof = ", np.min(lof_scores), " max lof = ", np.max(lof_scores), " mean lof = ", np.mean(lof_scores), " and threshold value = ", threshold)
             # print("Data of outlier is ", self.data)
             # if(self.detectionField == "Speed"):
@@ -320,7 +316,6 @@ class DBSCAN:
         if(self.core_points_count >= self.core_pt_threshold):
             self.alert_system.initiateMediumLevelAlert("Found clusters from DBSCAN as core points found is {} and threshold is {}".format(self.core_points_count, self.core_pt_threshold))
             print("Found clusters from DBSCAN as core points found is {} and threshold is {}".format(self.core_points_count, self.core_pt_threshold))
-            text_to_speech("Clusters detected")
             self.core_points_count = 0 # Reinitialize
 
             return True
@@ -365,6 +360,7 @@ databaseConnector.connect()
 # video_path = input("Enter the path of video to analyze: ")
 video_path = "Source/ML/accidents/cyberabad_traffic_incident2.mp4"
 # video_path = "Source/ML/accidents/pakistan_accident_1.mp4"
+# video_path = "Source/ML/Crimes/appleTheft.mp4"
 
 # video_path = "Source/ML/Crimes/chainSnatch1.mp4"
 name = video_path.split("/")[-1].split(".")[0]
@@ -729,10 +725,6 @@ def realTimeGeneralDataCollector(objects_detected, video_processor_active):
     if (video_processor_active.value): # If the video is also getting processed simultaneously, terminate the recursion
         realTimeGeneralDataCollector(objects_detected, video_processor_active)
 
-def text_to_speech(text: str):
-
-    engine.say(text)
-    engine.runAndWait()
 
 class Alerts:
     def __init__(self):
@@ -740,15 +732,31 @@ class Alerts:
         self.highLevelAlert = "bold red"
         self.mediumLevelAlert = "bold blue"
         self.lowLevelAlert = "bold yellow"
+        self.previousSpeechTime = time.time()
+        self.newSpeechTime = time.time()
+        self.speechInterval = 5
+        self.speak = True
 
     def initiateLowLevelAlert(self, cause: str):
         console.print(cause, style = self.lowLevelAlert)
+        self.text_to_speech(cause)
 
     def initiateMediumLevelAlert(self, cause: str):
         console.print(cause, style = self.mediumLevelAlert)
+        self.text_to_speech(cause)
 
     def initiateHighLevelAlert(self, cause: str):
         console.print(cause, style = self.highLevelAlert)
+        self.text_to_speech(cause)
+
+    def text_to_speech(self, text: str):
+
+        if(((time.time() - self.previousSpeechTime) < self.speechInterval) or (self.speak == False)):
+            return None
+
+        engine.say(text)
+        engine.runAndWait()
+        self.previousSpeechTime = time.time()
 
 def realTimeDetection(objects_detected, video_processor_active, anomalousSpeedMeans: AnomalousMeans, anomalousCountMeans: AnomalousMeans, outlierSpeedDetector: OutlierDetector, outlierCoordinateDetector: OutlierDetector, anomalousStayTimeDetector: AnomalousMeans, dbscan: DBSCAN, recentObjectsDetectedCoordinates):
     # console.print("Recently detected objects: ", recentObjectsDetectedCoordinates, style = "green")
@@ -802,15 +810,20 @@ if __name__ == "__main__":
     # Turns on the camera and starts YOLOv7 detection
     live_yolo_detection_process = multiprocessing.Process(target = start_ai_cam, args = (objects_detected, video_processor_active, recentObjectsDetectedCoordinates))
     
-    alertSystem = Alerts()
+    # alertSystem = Alerts()
     # Calculates and stores avg speed, crowd, and vehicle count simultaneously
     realTimeGenDataCollector = multiprocessing.Process(target = realTimeGeneralDataCollector, args = (objects_detected, video_processor_active))
     
     # For performing detections, using only objects_detected shared variable as mySQL connection for further processes won't work
-    anomalousSpeedMeans = AnomalousMeans(alertSystem) # For checking anomalus changes in the speeds of vehicles. This function compares the mean values of all data points captured, so it should run relatively less number of times
+    speedAlertSystem = Alerts()
+    coordinateAlertSystem = Alerts()
+    coordinateAlertSystem.speechInterval = 10
+    coordinateAlertSystem.speak = False
+    anomalousSpeedMeans = AnomalousMeans(speedAlertSystem) # For checking anomalus changes in the speeds of vehicles. This function compares the mean values of all data points captured, so it should run relatively less number of times
     anomalousSpeedMeans.detectionField = "Speed"
     # anomalousSpeedMeans.anomalyCheckTime = 5 # To keep comparing the means after every 10 sec
-    anomalousCountMeans = AnomalousMeans(alertSystem) # For checking anomalous changes in the count of vehicles. This function compares the mean values of all data points captured, so it should run relatively less number of times
+    countAlertSystem = Alerts()
+    anomalousCountMeans = AnomalousMeans(countAlertSystem) # For checking anomalous changes in the count of vehicles. This function compares the mean values of all data points captured, so it should run relatively less number of times
     anomalousCountMeans.detectionField = "Vehicle count"
     # anomalousCountMeans.anomalyCheckTime = 5
     outlierSpeedDetector = OutlierDetector() # Can run in real time after inserting proper data to check real time speed anomalies
@@ -818,14 +831,16 @@ if __name__ == "__main__":
     outlierCoordinateDetector = OutlierDetector() # For detecting objects at anomalous coordinates
     outlierCoordinateDetector.detectionField = "Coordinates"
     outlierCoordinateDetector.anomalyThreshold = 3
-    anomalousStayTimeDetector = AnomalousMeans(alertSystem) # Detect when objects stay for just too long under camera survelliance areas. During accidents, objects stop moving, people help the victims, and stay under camera for just too ling. It's made anomalous mean detector because we wanna detect anomaly of staying time for all objects combined, not just 1 or 2 individually.
-    dbscan = DBSCAN(100, 8, alertSystem, recentObjectsDetectedCoordinates)
+    stayTimeAlertSystem = Alerts()
+    anomalousStayTimeDetector = AnomalousMeans(stayTimeAlertSystem) # Detect when objects stay for just too long under camera survelliance areas. During accidents, objects stop moving, people help the victims, and stay under camera for just too ling. It's made anomalous mean detector because we wanna detect anomaly of staying time for all objects combined, not just 1 or 2 individually.
+    dbscanAlertSystem = Alerts()
+    dbscan = DBSCAN(100, 8, dbscanAlertSystem, recentObjectsDetectedCoordinates)
     dbscan.core_pt_threshold = 10
 
-    outlierSpeedDetector.alertsInstance = alertSystem
-    outlierCoordinateDetector.alertsInstance = alertSystem
-    anomalousStayTimeDetector.alertsInstance = alertSystem
-    anomalousSpeedMeans.alertsInstance = alertSystem
+    outlierSpeedDetector.alertsInstance = speedAlertSystem
+    outlierCoordinateDetector.alertsInstance = coordinateAlertSystem
+    anomalousStayTimeDetector.alertsInstance = stayTimeAlertSystem
+    anomalousSpeedMeans.alertsInstance = speedAlertSystem
 
     realTimeDetec = multiprocessing.Process(target = realTimeDetection, args = (objects_detected, video_processor_active, anomalousSpeedMeans, anomalousCountMeans, outlierSpeedDetector, outlierCoordinateDetector, anomalousStayTimeDetector, dbscan, recentObjectsDetectedCoordinates))
     
