@@ -235,6 +235,7 @@ class OutlierDetector:
             self.data = self.data[1:] # Keep removing elements from beginning, and appending new ones at the end. This might affect the performance a little, but for now, it won't hamper much
             # console.print("Removed an ele from outlier detection to avoid mem leak", style = "yellow")
             self.addTrainingData(data_point)
+            
         else:
             # print("Trying to data of {} {}".format(self.detectionField, data_point))
             if(data_point[0] != None):
@@ -248,22 +249,25 @@ class OutlierDetector:
             print("Entered if")
             data_point = data_point.reshape(1, -1)
             # console.print("Incoming data of {} is not none.... {}, field: {}".format(self.detectionField, data_point, self.detectionField))
-            # print("Incoming data: ", data_point)
-            # print("Current dataset: ", self.data)
             if (np.any(self.data)): # For appending data though np.vstack, it should initially have some element, shouldn't be empty
-                # self.data = data_point
                 try:
                     # console.print("apply vstack: data = {} and data point = {} for field {}".format(self.data, data_point, self.detectionField), style = "cyan")
                     self.data = np.vstack((self.data, data_point))
                 except Exception as e:
                     console.print("Exception occured while applying vstack",style = "red")
-                # console.print("data is not none")
             else:
                 self.data = data_point
                 # console.print("Data is none for field {}".format(self.detectionField), style = "red")
         else:
             # console.print("Data point is none.... for field {} {} expression comparision to None {}".format(self.detectionField, data_point, (data_point == [])), style = "red")
             pass
+
+    def speed_anomaly_confirmer(self, speeds):
+        print("Executing speeds confirmer: ", speeds)
+        for speed in speeds:
+            if(speed >= 290):
+                return True
+        return False
 
     def detectOutliers(self):
         console.print("Detecting outliers", style = "green")
@@ -273,8 +277,11 @@ class OutlierDetector:
         threshold = np.mean(lof_scores)*self.anomalyThreshold
         outliers = self.data[np.logical_or(lof_scores > threshold, lof_scores < threshold*(-1))]
         if(len(outliers) != 0):
-            self.alertsInstance.initiateMediumLevelAlert("Detected Outliers in {}.".format(self.detectionField))
-            
+            if(self.detectionField == "Speed" and self.speed_anomaly_confirmer(self.data)):
+                self.alertsInstance.initiateMediumLevelAlert("Detected Outliers in {}.".format(self.detectionField))
+            elif(self.detectionField != "Speed"):
+                self.alertsInstance.initiateMediumLevelAlert("Detected Outliers in {}.".format(self.detectionField))
+            # console.print("Outliers are ", outliers)
             # print("Current LOF scores = ", lof_scores, " min lof = ", np.min(lof_scores), " max lof = ", np.max(lof_scores), " mean lof = ", np.mean(lof_scores), " and threshold value = ", threshold)
             # print("Data of outlier is ", self.data)
             # if(self.detectionField == "Speed"):
@@ -348,7 +355,7 @@ class DBSCAN:
         if(self.core_points_count >= 30):
             self.core_pt_threshold = 30
         elif(self.core_points_count <= 10):
-            self.core_pt_threshold = 12
+            self.core_pt_threshold = 25
 
         self.single_time_runner += 1
 
@@ -358,9 +365,9 @@ databaseConnector.connect()
 
 # Getting video inputs
 # video_path = input("Enter the path of video to analyze: ")
-video_path = "Source/ML/accidents/cyberabad_traffic_incident2.mp4"
+# video_path = "Source/ML/accidents/cyberabad_traffic_incident2.mp4"
 # video_path = "Source/ML/accidents/pakistan_accident_1.mp4"
-# video_path = "Source/ML/Crimes/appleTheft.mp4"
+video_path = "Source/ML/Crimes/appleTheft.mp4"
 
 # video_path = "Source/ML/Crimes/chainSnatch1.mp4"
 name = video_path.split("/")[-1].split(".")[0]
@@ -824,8 +831,8 @@ if __name__ == "__main__":
     # anomalousSpeedMeans.anomalyCheckTime = 5 # To keep comparing the means after every 10 sec
     countAlertSystem = Alerts()
     anomalousCountMeans = AnomalousMeans(countAlertSystem) # For checking anomalous changes in the count of vehicles. This function compares the mean values of all data points captured, so it should run relatively less number of times
-    anomalousCountMeans.detectionField = "Vehicle count"
-    # anomalousCountMeans.anomalyCheckTime = 5
+    # anomalousCountMeans.detectionField = "Vehicle count"
+    anomalousCountMeans.anomalyCheckTime = 5
     outlierSpeedDetector = OutlierDetector() # Can run in real time after inserting proper data to check real time speed anomalies
     outlierSpeedDetector.detectionField = "Speed"
     outlierCoordinateDetector = OutlierDetector() # For detecting objects at anomalous coordinates
@@ -834,6 +841,7 @@ if __name__ == "__main__":
     stayTimeAlertSystem = Alerts()
     anomalousStayTimeDetector = AnomalousMeans(stayTimeAlertSystem) # Detect when objects stay for just too long under camera survelliance areas. During accidents, objects stop moving, people help the victims, and stay under camera for just too ling. It's made anomalous mean detector because we wanna detect anomaly of staying time for all objects combined, not just 1 or 2 individually.
     dbscanAlertSystem = Alerts()
+    dbscanAlertSystem.speechInterval += 10
     dbscan = DBSCAN(100, 8, dbscanAlertSystem, recentObjectsDetectedCoordinates)
     dbscan.core_pt_threshold = 10
 

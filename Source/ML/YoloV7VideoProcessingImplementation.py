@@ -16,8 +16,43 @@ import scipy.stats as stats
 import numpy as np
 from sklearn.neighbors import LocalOutlierFactor
 import pandas as pd
+from twilio.rest import Client
+import firebase_admin
+from firebase_admin import credentials, firestore
 
+cred = credentials.Certificate(
+            "Resources/kavach-database-af36f-firebase-adminsdk-xied5-fe7e2e69d0.json"
+        )
+firebase_admin.initialize_app(cred)
 console = Console()
+
+class Messenger:
+    def __init__(self):
+        self.account_sid = 'AC77bfad7490e021b782f707ffcdf0aa8c'
+        self.auth_token = '56a101a9c555c1c23926aa07740ae59b'
+        self.client = Client(self.account_sid, self.auth_token)
+
+    def send_whatsapp_message(self, text: str):
+
+        message = self.client.messages.create(
+        from_='whatsapp:+14155238886',
+        body=text,
+        to='whatsapp:+917828515205'
+        )
+
+        print(message.sid)
+
+    def send_sms(self, text: str):
+
+        message = self.client.messages.create(
+        from_='+12346352346',
+        body=text,
+        to='+917828515205'
+        )
+
+        print(message.sid)
+
+
 # Class for dealing with database connections
 class DatabaseConnector:
     """For interacting with MySQL database."""
@@ -147,7 +182,7 @@ class AnomalousMeans:
     def __init__(self, alertsInstance):
         self.checkpoints = []
         self.newCheckpointBuffer = [] # It accumulates checkpoint data before finally sending it to checkpoints
-        self.threshold_value = 0.03
+        self.threshold_value = 0.03 # Increase it to say that we have more confidence that means will be different
         self.alertsInstance = alertsInstance # Set this manually as this instance will be used to throw alerts
         self.lastCheckpointTime = time.time() # To keep a track of time when the data and anomalous checks were last performed
         self.anomalyCheckTime = 5 # Number of seconds after which data should get checked for anomaly. Increase this to enable model to learn the trends better. But it'll take more time to adapt
@@ -725,6 +760,23 @@ def realTimeGeneralDataCollector(objects_detected, video_processor_active):
     if (video_processor_active.value): # If the video is also getting processed simultaneously, terminate the recursion
         realTimeGeneralDataCollector(objects_detected, video_processor_active)
 
+class FireBaseConnection:
+    def __init__(self):
+        
+        self.db = firestore.client()
+        self.data_to_add = {"name": "John Doe", "age": 30, "email": "john.doe@example.com"}
+        self.collectionName = "kavachAlerts"
+        self.users_ref = self.db.collection("users")
+        
+    def getData(self):
+        docs = [i.to_dict() for i in self.users_ref.get()]
+        return docs
+
+    def addData(self, data):
+        self.data_to_add = data
+        auto_id  = self.users_ref.add(self.data_to_add)
+        console.print("Data updated to Firebase cloud.", style = "green")
+        return auto_id
 
 class Alerts:
     def __init__(self):
@@ -736,18 +788,25 @@ class Alerts:
         self.newSpeechTime = time.time()
         self.speechInterval = 5
         self.speak = True
+        self.messenger = Messenger()
+        # self.firebaseConnection = FireBaseConnection()
 
     def initiateLowLevelAlert(self, cause: str):
         console.print(cause, style = self.lowLevelAlert)
         self.text_to_speech(cause)
+        # self.firebaseConnection(self.firebaseConnection.addData({"cause": cause, "time": time.ctime(), "location": (37.7749, -122.4194)}))
 
     def initiateMediumLevelAlert(self, cause: str):
         console.print(cause, style = self.mediumLevelAlert)
         self.text_to_speech(cause)
+        # self.firebaseConnection(self.firebaseConnection.addData({"cause": cause, "time": time.ctime(), "location": (37.7749, -122.4194)}))
+        # self.messenger.send_sms(cause) # You can also send whatsapp messages
 
     def initiateHighLevelAlert(self, cause: str):
         console.print(cause, style = self.highLevelAlert)
         self.text_to_speech(cause)
+        # self.firebaseConnection(self.firebaseConnection.addData({"cause": cause, "time": time.ctime(), "location": (37.7749, -122.4194)}))
+        # self.messenger.send_sms(cause)
 
     def text_to_speech(self, text: str):
 
