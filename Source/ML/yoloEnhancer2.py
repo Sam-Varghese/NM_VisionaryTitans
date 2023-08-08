@@ -1,5 +1,5 @@
 # Yolov7 video processing format
-
+# Function set for apple security camera
 import cv2
 import time
 import random
@@ -16,6 +16,7 @@ import scipy.stats as stats
 import numpy as np
 from sklearn.neighbors import LocalOutlierFactor
 import pandas as pd
+from twilio.rest import Client
 
 console = Console()
 # Class for dealing with database connections
@@ -205,7 +206,7 @@ class AnomalousMeans:
         else:
             console.print("Means don't differ significantly", style = "green")
             # console.print("Debug info: \ncheckpoints list = ", self.checkpoints)
-            
+
             return False
 
 class OutlierDetector:
@@ -264,9 +265,14 @@ class OutlierDetector:
 
     def speed_anomaly_confirmer(self, speeds):
         print("Executing speeds confirmer: ", speeds)
+        maxNum = speeds[0]
         for speed in speeds:
-            if(speed >= 290):
+            if(speed > maxNum):
+                maxNum = speed
+            # if(speed >= 290):
+            if(speed >= 250):
                 return True
+        print("Max speed is ", maxNum)
         return False
 
     def detectOutliers(self):
@@ -733,6 +739,32 @@ def realTimeGeneralDataCollector(objects_detected, video_processor_active):
         realTimeGeneralDataCollector(objects_detected, video_processor_active)
 
 
+class Messenger:
+    def __init__(self):
+        self.account_sid = 'AC77bfad7490e021b782f707ffcdf0aa8c'
+        self.auth_token = '56a101a9c555c1c23926aa07740ae59b'
+        self.client = Client(self.account_sid, self.auth_token)
+
+    def send_whatsapp_message(self, text: str):
+
+        message = self.client.messages.create(
+        from_='whatsapp:+14155238886',
+        body=text,
+        to='whatsapp:+917828515205'
+        )
+
+        print(message.sid)
+
+    def send_sms(self, text: str):
+
+        message = self.client.messages.create(
+        from_='+12346352346',
+        body=text,
+        to='+917828515205'
+        )
+
+        print(message.sid)
+
 class Alerts:
     def __init__(self):
         self.alertHistory = {} # Keys: time, values: further details of the alert like cause, severity level, alert cause
@@ -743,18 +775,22 @@ class Alerts:
         self.newSpeechTime = time.time()
         self.speechInterval = 5
         self.speak = True
+        self.messenger = Messenger()
 
     def initiateLowLevelAlert(self, cause: str):
         console.print(cause, style = self.lowLevelAlert)
         self.text_to_speech(cause)
+        # self.messenger.send_sms(cause) # You can also send whatsapp messages
 
     def initiateMediumLevelAlert(self, cause: str):
         console.print(cause, style = self.mediumLevelAlert)
         self.text_to_speech(cause)
+        # self.messenger.send_sms(cause) # You can also send whatsapp messages
 
     def initiateHighLevelAlert(self, cause: str):
         console.print(cause, style = self.highLevelAlert)
         self.text_to_speech(cause)
+        # self.messenger.send_sms(cause) # You can also send whatsapp messages
 
     def text_to_speech(self, text: str):
 
@@ -831,7 +867,7 @@ if __name__ == "__main__":
     # anomalousSpeedMeans.anomalyCheckTime = 5 # To keep comparing the means after every 10 sec
     countAlertSystem = Alerts()
     anomalousCountMeans = AnomalousMeans(countAlertSystem) # For checking anomalous changes in the count of vehicles. This function compares the mean values of all data points captured, so it should run relatively less number of times
-    # anomalousCountMeans.detectionField = "Vehicle count"
+    anomalousCountMeans.detectionField = "Vehicle count"
     anomalousCountMeans.anomalyCheckTime = 5
     outlierSpeedDetector = OutlierDetector() # Can run in real time after inserting proper data to check real time speed anomalies
     outlierSpeedDetector.detectionField = "Speed"

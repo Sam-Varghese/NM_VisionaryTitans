@@ -232,7 +232,7 @@ class AnomalousMeans:
         console.print("Checking mean anomaly...", style = "green")
         if(p_value < self.threshold_value):
             # Give an alert because the means differ significantly
-            self.alertsInstance.initiateMediumLevelAlert("Means differ significantly in {}.".format(self.detectionField))
+            self.alertsInstance.autoInitiateAlert("Means differ significantly in {}.".format(self.detectionField))
             console.print("Debug info: \ncheckpoints list = ", self.checkpoints)
             # print("Checkpoints are ", self.checkpoints)
 
@@ -308,7 +308,7 @@ class OutlierDetector:
         threshold = np.mean(lof_scores)*self.anomalyThreshold
         outliers = self.data[np.logical_or(lof_scores > threshold, lof_scores < threshold*(-1))]
         if(len(outliers) != 0):
-            self.alertsInstance.initiateMediumLevelAlert("Detected Outliers in {}.".format(self.detectionField))
+            self.alertsInstance.autoInitiateAlert("Detected Outliers in {}.".format(self.detectionField))
             
             # print("Current LOF scores = ", lof_scores, " min lof = ", np.min(lof_scores), " max lof = ", np.max(lof_scores), " mean lof = ", np.mean(lof_scores), " and threshold value = ", threshold)
             # print("Data of outlier is ", self.data)
@@ -349,7 +349,7 @@ class DBSCAN:
             self.direct_density_reachable_count = 0
 
         if(self.core_points_count >= self.core_pt_threshold):
-            self.alert_system.initiateMediumLevelAlert("Found clusters from DBSCAN as core points found is {} and threshold is {}".format(self.core_points_count, self.core_pt_threshold))
+            self.alert_system.autoInitiateAlert("Found clusters from DBSCAN as core points found is {} and threshold is {}".format(self.core_points_count, self.core_pt_threshold))
             print("Found clusters from DBSCAN as core points found is {} and threshold is {}".format(self.core_points_count, self.core_pt_threshold))
             self.core_points_count = 0 # Reinitialize
 
@@ -762,7 +762,7 @@ def realTimeGeneralDataCollector(objects_detected, video_processor_active):
 
 class FireBaseConnection:
     def __init__(self):
-        
+
         self.db = firestore.client()
         self.data_to_add = {"name": "John Doe", "age": 30, "email": "john.doe@example.com"}
         self.collectionName = "kavachAlerts"
@@ -789,7 +789,24 @@ class Alerts:
         self.speechInterval = 5
         self.speak = True
         self.messenger = Messenger()
-        # self.firebaseConnection = FireBaseConnection()
+
+    def autoInitiateAlert(self, cause):
+        highAlertCause = ["speed"]
+        mediumAlertCause = [""]
+        lowAlertCause = ["count"]
+
+        for cas in highAlertCause:
+            if cas in cause:
+                self.text_to_speech("Generating high level alert")
+                self.initiateHighLevelAlert(cause)
+        for cas in mediumAlertCause:
+            if cas in cause:
+                self.text_to_speech("Generating medium level alert")
+                self.initiateMediumLevelAlert(cause)
+        for cas in lowAlertCause:
+            if cas in cause:
+                self.text_to_speech("Generating low level alert")
+                self.initiateLowLevelAlert(cause)
 
     def initiateLowLevelAlert(self, cause: str):
         console.print(cause, style = self.lowLevelAlert)
@@ -805,8 +822,7 @@ class Alerts:
     def initiateHighLevelAlert(self, cause: str):
         console.print(cause, style = self.highLevelAlert)
         self.text_to_speech(cause)
-        # self.firebaseConnection(self.firebaseConnection.addData({"cause": cause, "time": time.ctime(), "location": (37.7749, -122.4194)}))
-        # self.messenger.send_sms(cause)
+        # self.messenger.send_sms(cause) # You can also send whatsapp messages
 
     def text_to_speech(self, text: str):
 
