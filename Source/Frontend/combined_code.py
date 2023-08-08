@@ -109,7 +109,7 @@ def view_all_users():
 #defining code for 4 main options
 def cctv_footages():
     st.write("Video Player")
-    video_url = r"D:\VS Code Workspace\Fair Space\GitHub\NM_VisionaryTitans\Source\Frontend\accident_footage.mp4"
+    video_url = r"Source/Frontend/accident_footage.mp4"
 
     if video_url:
         st.video(video_url)
@@ -121,7 +121,7 @@ def cctv_footages():
         play_button = st.button("Play")
 
         # Video playback
-        video_path = r"D:\VS Code Workspace\Fair Space\GitHub\NM_VisionaryTitans\Source\Frontend\accident_footage.mp4"
+        video_path = r"Source/Frontend/accident_footage.mp4"
 
         # Check if play button is clicked
         if play_button:
@@ -173,7 +173,7 @@ def programmatic_actions():
     
     
 def manual_actions():
-    video_url = r"D:\VS Code Workspace\Fair Space\GitHub\NM_VisionaryTitans\Source\Frontend\accident_footage.mp4"
+    video_url = r"Source/Frontend/accident_footage.mp4"
     if video_url:
         st.video(video_url)
 
