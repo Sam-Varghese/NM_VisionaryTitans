@@ -3,7 +3,7 @@ import cv2
 def generate_frames():
     # Create a VideoCapture object for your camera (0 for the default camera).
     # If you want to stream a video file, you can specify the file path instead of 0.
-    cap = cv2.VideoCapture(r"D:\VS Code Workspace\Fair Space\GitHub\NM_VisionaryTitans\Source\Frontend\accident_footage.mp4")
+    cap = cv2.VideoCapture(r"Source/Frontend/accident_footage.mp4")
     # cap = cv2.VideoCapture(0)
     # cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 

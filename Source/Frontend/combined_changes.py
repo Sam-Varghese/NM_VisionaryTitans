@@ -1,3 +1,6 @@
+import sys
+sys.path.insert(1, "/opt/homebrew/lib/python3.11/site-packages")
+import mysql.connector
 import sqlite3
 import hashlib
 import base64
@@ -9,8 +12,6 @@ import numpy as np
 from PIL import Image
 from sklearn import datasets
 from sklearn.ensemble import RandomForestClassifier
-import sys
-sys.path.insert(1, "/opt/homebrew/lib/python3.11/site-packages")
 import requests
 import streamlit.components.v1 as components
 from streamlit_extras.dataframe_explorer import dataframe_explorer
@@ -18,6 +19,10 @@ from streamlit_lottie import st_lottie
 import json
 import plotly.express as px
 import matplotlib.pyplot as plt
+import folium
+import streamlit as st
+import pydeck as pdk
+from mysql.connector import errorcode
 
 #change in tab icon and title:
 img = Image.open('Source/Frontend/logo_title.jpg')
@@ -110,7 +115,7 @@ def view_all_users():
 def cctv_footages():
     st.markdown(css, unsafe_allow_html=True)
     st.markdown("<h3 style='text-align: center;'>Video Player</h3>", unsafe_allow_html=True)
-    video_url = r"D:\VS Code Workspace\Fair Space\GitHub\NM_VisionaryTitans\Source\Frontend\accident_footage.mp4"
+    video_url = r"Source/Frontend/accident_footage.mp4"
 
     if video_url:
         st.video(video_url)
@@ -122,7 +127,7 @@ def cctv_footages():
         play_button = st.button("Play")
 
         # Video playback
-        video_path = r"D:\VS Code Workspace\Fair Space\GitHub\NM_VisionaryTitans\Source\Frontend\accident_footage.mp4"
+        video_path = r"Source/Frontend/accident_footage.mp4"
 
         # Checking  play button is clicked
         if play_button:
@@ -176,7 +181,7 @@ def programmatic_actions():
 
 def manual_actions():
     st.markdown(css, unsafe_allow_html=True)
-    video_url = r"D:\VS Code Workspace\Fair Space\GitHub\NM_VisionaryTitans\Source\Frontend\accident_footage.mp4"
+    video_url = r"Source/Frontend/accident_footage.mp4"
     if video_url:
         st.video(video_url)
 
@@ -198,43 +203,95 @@ def manual_actions():
         st.slider('Check for severity ', 0, 10, 5)
         st.write('Highly Severe !')
 
-def report():
-    df = pd.read_csv("Source/Frontend/dataset.csv")
-    st.title("Real-Time Report")
-    job_filter = st.selectbox("Select the Job", pd.unique(df['job']))
-    # creating a single-element container.
-    placeholder = st.empty()
-    # dataframe filter
-    df = df[df['job'] == job_filter]
-    # near real-time / live feed simulation
-    for seconds in range(200):
-        df['age_new'] = df['age'] * np.random.choice(range(1, 5))
-        df['balance_new'] = df['balance'] * np.random.choice(range(1, 5))
-        # creating KPIs
-        avg_age = np.mean(df['age_new'])
-        count_married = int(df[(df["marital"] == 'married')]
-            ['marital'].count() + np.random.choice(range(1, 30)))
-        balance = np.mean(df['balance_new'])
+def report(self):
+        df = pd.read_csv("Source/Frontend/dataset.csv")
+        st.title("Real-Time Report")
+        job_filter = st.selectbox("Select the Job", pd.unique(df['job']))
+        # creating a single-element container.
+        placeholder = st.empty()
+        # dataframe filter
+        df = df[df['job'] == job_filter]
+        minute_vehicle_count_df = databaseConnector.allDataToDataframe(100, "select time, count(distinct vehicleName) as totalVehicles from {} group by time;".format(self.table_name))
+        coordinates_df = databaseConnector.allDataToDataframe(100, "SELECT topLeftX, topLeftY from {} limit 100;".format(self.table_name))
+        avg_speed_timedf = databaseConnector.allDataToDataframe(100, "select time, AVG(speed) as avg_speed from {} group by time;".format(self.table_name))
+        # near real-time / live feed simulation
+        for seconds in range(200):
+            df['age_new'] = df['age'] * np.random.choice(range(1, 5))
+            df['balance_new'] = df['balance'] * np.random.choice(range(1, 5))
+            # creating KPIs
+            avg_age = np.mean(df['age_new'])
+            count_married = int(df[(df["marital"] == 'married')]
+                ['marital'].count() + np.random.choice(range(1, 30)))
+            balance = np.mean(df['balance_new'])
 
-        with placeholder.container():
-            kpi1, kpi2, kpi3 = st.columns(3)
-            kpi1.metric(label="Incidents Count 🤕", value=round(
-            avg_age), delta=round(avg_age) - 10)
-            kpi2.metric(label="Accidents Count 🚗", value=int(
-            count_married), delta=- 10 + count_married)
-            kpi3.metric(label="Alerts Sent 🚨",
-                    value=f"{round(balance,2)} ", delta=- round(balance/count_married) * 100)
+            with placeholder.container():
+                kpi1, kpi2, kpi3 = st.columns(3)
+                kpi1.metric(label="Incidents Count 🤕", value=round(
+                avg_age), delta=round(avg_age) - 10)
+                kpi2.metric(label="Accidents Count 🚗", value=int(
+                count_married), delta=- 10 + count_married)
+                kpi3.metric(label="Alerts Sent 🚨",
+                        value=f"{round(balance,2)} ", delta=- round(balance/count_married) * 100)
 
-            # create two columns for charts
-            fig_col1, fig_col2 = st.columns(2)
-            with fig_col1:
-                st.markdown("### First Chart")
-                fig = px.density_heatmap(data_frame=df, y='age_new', x='marital')
-                st.write(fig)
-            with fig_col2:
-                st.markdown("### Second Chart")
-                fig2 = px.histogram(data_frame=df, x='age_new')
-                st.write(fig2)
+                # create two columns for charts
+                fig_col1, fig_col2 = st.columns(2)
+                with fig_col1:
+                    st.markdown("### Crowd vs Time")
+                    fig2 = px.histogram(data_frame=avg_speed_timedf, x='time', y = "avg_speed")
+                    st.write(fig2)
+                with fig_col2:
+                    st.markdown("### Crowd vs Time")
+                    fig2 = px.histogram(data_frame=minute_vehicle_count_df, x='time', y = "totalVehicles")
+                    st.write(fig2)
+                print(st.columns(1))
+                fig_col3 = st.columns(1)
+
+                with fig_col3[0]:
+                    st.markdown("### Live coordinates")
+                    fig3 = px.scatter(coordinates_df, x = "topLeftX", y = "topLeftY")
+                    st.write(fig3)
+    # center on Liberty Bell, add marker
+        st.markdown("###Third Chart-Location")
+        m = folium.Map(location=[19.0748, 72.8856], zoom_start=16)
+        folium.Marker(
+        [19.0748, 72.8856], popup="Liberty Bell", tooltip="Liberty Bell"
+        ).add_to(m)
+
+# call to render Folium map in Streamlit
+        st_data = st_folium(m, width=725)
+        st.markdown("### Fourth Chart-Area Analysis")
+        chart_data = pd.DataFrame(
+        np.random.randn(1000, 2) / [50, 50] + [37.76, -122.4],
+        columns=['lat', 'lon'])
+
+        st.pydeck_chart(pdk.Deck(
+    map_style=None,
+    initial_view_state=pdk.ViewState(
+        latitude=19.0748,
+        longitude=72.8856,
+        zoom=11,
+        pitch=50,
+    ),
+    layers=[
+        pdk.Layer(
+           'HexagonLayer',
+           data=chart_data,
+           get_position='[lon, lat]',
+           radius=200,
+           elevation_scale=4,
+           elevation_range=[0, 1000],
+           pickable=True,
+           extruded=True,
+        ),
+        pdk.Layer(
+            'ScatterplotLayer',
+            data=chart_data,
+            get_position='[lon, lat]',
+            get_color='[200, 30, 0, 160]',
+            get_radius=200,
+        ),
+    ],
+))
 
 # Main Application Page
 def main_app():
