@@ -109,7 +109,7 @@ def view_all_users():
 #defining code for 4 main options
 def cctv_footages():
     st.write("Video Player")
-    video_url = r"C:\Users\Lenovo\Videos\Captures\sam_bhaiya.mp4"
+    video_url = r"D:\VS Code Workspace\Fair Space\GitHub\NM_VisionaryTitans\Source\Frontend\accident_footage.mp4"
 
     if video_url:
         st.video(video_url)
@@ -121,7 +121,7 @@ def cctv_footages():
         play_button = st.button("Play")
 
         # Video playback
-        video_path = r"C:\Users\Lenovo\Videos\Captures\sam_bhaiya.mp4"
+        video_path = r"D:\VS Code Workspace\Fair Space\GitHub\NM_VisionaryTitans\Source\Frontend\accident_footage.mp4"
 
         # Check if play button is clicked
         if play_button:
@@ -173,7 +173,7 @@ def programmatic_actions():
     
     
 def manual_actions():
-    video_url = r"C:\Users\Lenovo\Videos\Captures\sam_bhaiya.mp4"
+    video_url = r"D:\VS Code Workspace\Fair Space\GitHub\NM_VisionaryTitans\Source\Frontend\accident_footage.mp4"
     if video_url:
         st.video(video_url)
 
@@ -195,11 +195,9 @@ def manual_actions():
         st.slider('Check for severity ', 0, 10, 5)
         st.write('Highly Severe !')
 
-
-
 # Main Application Page
 def main_app():
-    st.title("NM_VisionaryTitains")
+    st.title("NM_VisionaryTitans")
     # Check authentication status
     if st.session_state.get("isAuthenticated"):
         st.success("Login successful!")
