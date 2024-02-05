@@ -116,7 +116,7 @@ solara==1.17.3
 soupsieve==2.4.1
 st-clickable-images==0.0.3
 stack-data==0.6.2
-starlette==0.27.0
+starlette==0.36.2
 streamlit==1.23.1
 streamlit-authenticator==0.2.2
 streamlit-book==0.7.5
